@@ -6,7 +6,7 @@ Course project for **UCS553 Enterprise Web Application** (TIET) by Pratham Arora
 
 ## Tech stack
 
-- **Backend:** Java 21, Spring Boot 3.5, Spring Data JPA, PostgreSQL 16, Flyway, Spring Mail
+- **Backend:** Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, PostgreSQL 16, Flyway, Spring Mail
 - **Frontend:** React 18, Vite, Tailwind CSS
 - **Infra:** Docker Compose (PostgreSQL, Mailpit, app), GitHub Actions
 
@@ -37,6 +37,8 @@ Maven does not need to be installed; the repository includes the Maven wrapper (
 
    On Windows PowerShell or cmd, use `mvnw.cmd spring-boot:run`.
 
+   `spring-boot:run` uses the `dev` profile, which creates sample data on first start (see below).
+
 3. In a second terminal, start the frontend (UI on http://localhost:5173):
 
    ```bash
@@ -48,6 +50,29 @@ Maven does not need to be installed; the repository includes the Maven wrapper (
 Open http://localhost:5173. The page shows "API UP" when the frontend can reach `/api/health` through the Vite proxy.
 
 Emails sent by the app are caught by Mailpit at http://localhost:8025.
+
+### Dev accounts and sample data
+
+The `dev` profile creates these accounts. They all use the password `festpass123`. They're for local development only.
+
+| Email | Role |
+|---|---|
+| `student@festpass.local` | Student |
+| `organizer@festpass.local` | Organizer |
+| `gate@festpass.local` | Gate staff |
+| `admin@festpass.local` | Admin |
+
+It also creates three published events:
+
+- **Rhythm Night: Saturday Showcase**: a seated auditorium show with 202 seats in 3 tiers.
+- **Open Air: Sunset Sessions**: general admission with 2 tiers.
+- **Midnight Drop: DJ Night**: a seated flash drop. Its sale opens 3 minutes after every backend start.
+
+To start again from an empty database:
+
+```bash
+docker compose down -v
+```
 
 ## Run everything in Docker
 
@@ -84,6 +109,6 @@ The backend reads these environment variables (defaults suit the local Docker Co
 ```
 backend/     Spring Boot app (package per feature under com.festpass)
 frontend/    React + Vite app
-docs/        API reference, architecture and demo script
+docs/        API reference (docs/api.md), architecture and demo script
 load-tests/  JMeter plan (Phase 7)
 ```

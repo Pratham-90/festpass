@@ -4,7 +4,7 @@ Flash-sale ticketing for college fests. Full spec and phase plan: `PLAN.md` (bui
 
 ## Commands
 - Infra: `docker compose up -d postgres mailpit` (Mailpit inbox: http://localhost:8025)
-- Backend: `cd backend && ./mvnw spring-boot:run` (API on :8080; Windows: `mvnw.cmd`)
+- Backend: `cd backend && ./mvnw spring-boot:run` (API on :8080, `dev` profile seeds data; Windows: `mvnw.cmd`)
 - Frontend: `cd frontend && npm install && npm run dev` (UI on :5173, proxies `/api` and `/ws` to :8080)
 - Tests: `cd backend && ./mvnw verify` (needs Docker running for Testcontainers)
 - Frontend build: `cd frontend && npm run build`
@@ -20,12 +20,13 @@ Flash-sale ticketing for college fests. Full spec and phase plan: `PLAN.md` (bui
 - Each package: `controller -> service -> repository`. DTOs are Java `record`s. Controllers never return JPA entities.
 - Money is `long` paise. Timestamps are `timestamptz`, always from the injected `Clock` (never `Instant.now()` without it).
 - Schema changes only via Flyway (`db/migration/V<n>__name.sql`); Hibernate is `validate` only.
-- Errors are `ProblemDetail` with a stable `code` (e.g. `SEAT_UNAVAILABLE`, `SOLD_OUT`, `HOLD_EXPIRED`).
+- Entities hold foreign keys as plain ids (`Long eventId`), not JPA relations.
+- Errors: throw `ApiException` with an `ErrorCode`; it becomes a `ProblemDetail` with a stable `code`.
 - Publish WebSocket messages and send email only after the transaction commits.
 - Document every endpoint in `docs/api.md` as it is built.
 
 ## Testing
-- Integration tests use Testcontainers PostgreSQL (`TestcontainersConfig`). Never H2.
+- Integration tests extend `IntegrationTest` (Testcontainers PostgreSQL). Never H2.
 - Concurrency tests start threads together with a `CountDownLatch` and assert exact counts.
 - Time-dependent tests move the `Clock`; never `Thread.sleep` to wait for expiry.
 - If Docker is unavailable, say so. Never skip or weaken tests.

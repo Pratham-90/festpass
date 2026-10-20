@@ -4,21 +4,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.festpass.TestcontainersConfig;
+import com.festpass.IntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@Import(TestcontainersConfig.class)
-class HealthControllerTest {
-
-    @Autowired
-    MockMvc mvc;
+class HealthControllerTest extends IntegrationTest {
 
     @Test
     void healthReportsUpWithDatabase() throws Exception {
@@ -30,8 +19,12 @@ class HealthControllerTest {
     }
 
     @Test
-    void unknownApiPathIsNotFound() throws Exception {
+    void unknownApiPathIsNotFoundProblem() throws Exception {
         mvc.perform(get("/api/does-not-exist"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized()); // unknown /api paths need a login first
+
+        mvc.perform(get("/api/events/does-not-exist"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 }

@@ -414,7 +414,7 @@ Real payment gateways, refunds, native mobile apps, multiple app instances or ho
 Claude Code updates this section at the end of every phase.
 
 - [x] Phase 0: Project setup
-- [ ] Phase 1: Backend foundations
+- [x] Phase 1: Backend foundations
 - [ ] Phase 2: Booking engine
 - [ ] Phase 3: Real-time layer
 - [ ] Phase 4: Frontend core
@@ -425,4 +425,14 @@ Claude Code updates this section at the end of every phase.
 ### Notes and deferred items
 - **Phase 0:** Versions chosen: Spring Boot 3.5.16, Maven 3.9.16 (via the wrapper, no global Maven needed), Vite 8, Tailwind CSS 4 (design tokens live in the `@theme` block of `frontend/src/styles/index.css`), React 18.3.1. Only the dependencies needed so far are installed; the rest of Section 2 is added in the phase that uses it.
 - **Phase 0:** The CI workflow (`.github/workflows/ci.yml`) has not run yet because the repository has no GitHub remote. Its three steps (`mvnw verify`, `npm ci && npm run build`, `docker build`) all pass locally.
+- **Phase 1:** Decisions made where the plan was open:
+  - Public registration always creates a `STUDENT`. Other roles are set by an admin (`PUT /api/admin/users/{id}/role`) and take effect at the user's next login.
+  - `ADMIN` can use every organizer endpoint for any event. Organizers only for their own (`403` otherwise).
+  - `/api/checkin` is open to `GATE_STAFF` and `ADMIN`. The per-event gate assignment check comes with check-in in Phase 2.
+  - For seated events, a tier's `capacity` is its seat count and grows as sections are added. Tiers and sections can only change while the event is a draft.
+  - Extra endpoints the frontend will need: `GET /api/organizer/events`, `GET /api/organizer/events/{id}`, `GET /api/organizer/events/{id}/seatmap` (draft preview) and `GET /api/organizer/events/{id}/gate-staff`.
+  - Extra error codes beyond Section 5.8: `UNAUTHENTICATED`, `BAD_CREDENTIALS`, `FORBIDDEN`, `CSRF_INVALID`, `EMAIL_TAKEN`, `NOT_FOUND`, `INVALID_STATE`, `CONFLICT`, `INTERNAL_ERROR`.
+  - Extra DB safety nets beyond the plan: `CHECK (reserved <= capacity)` on `ticket_tiers`, and seat status/hold consistency checks on `seats`. `tickets` also has a `created_at` column.
+- **Phase 1:** Entities exist for every table, so Hibernate validates the whole schema. Their behaviour comes in the phase that uses them.
+- **Phase 1:** The `csrf()` helper in spring-security-test permanently replaces the CSRF cookie repository in the Spring context it runs in. That's why the real cookie-flow test (`CsrfCookieFlowIntegrationTest`) runs in its own context.
 - **Phase 0:** `SpaWebConfig` serves `index.html` for client-side routes such as `/events/x`, so deep links work from the single JAR. `/api/**` paths and missing files still return 404.
