@@ -77,8 +77,8 @@ class SchemaGuaranteesIntegrationTest extends EventTestSupport {
         UUID holdId = UUID.randomUUID();
         Timestamp now = Timestamp.from(Instant.now());
         jdbc.update("""
-                INSERT INTO holds (id, event_id, user_id, status, expires_at, created_at)
-                VALUES (?, ?, ?, 'CONVERTED', ?, ?)""", holdId, eventId, userId, now, now);
+                INSERT INTO holds (id, event_id, user_id, quantity, status, expires_at, created_at)
+                VALUES (?, ?, ?, 1, 'CONVERTED', ?, ?)""", holdId, eventId, userId, now, now);
         return jdbc.queryForObject("""
                 INSERT INTO orders (user_id, event_id, hold_id, idempotency_key, amount_paise, status, created_at)
                 VALUES (?, ?, ?, ?, 100, 'PAID', ?) RETURNING id""",

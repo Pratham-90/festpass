@@ -17,6 +17,10 @@ Every request that changes something (`POST`, `PUT`, `DELETE`), including login 
 
 Login issues a fresh token straight away, in the login response itself. Always read the cookie just before each request rather than caching it. A missing or wrong token gives `403` with code `CSRF_INVALID`.
 
+### Idempotency keys
+
+`POST /api/orders` and `POST /api/payments/mock/{orderId}` need an `Idempotency-Key` header: 8 to 100 letters, digits or `_ . : -`, for example a UUID. Make **one key per attempt** and reuse it when retrying that attempt, such as after a timeout or a double click. A retry with the same key returns the first result. It never creates a second order or a second set of tickets.
+
 ### Errors
 
 Every error is an RFC 7807 `ProblemDetail` (`Content-Type: application/problem+json`) with a stable `code`:
@@ -45,9 +49,14 @@ Every error is an RFC 7807 `ProblemDetail` (`Content-Type: application/problem+j
 | `EMAIL_TAKEN` | 409 | An account with this email exists |
 | `INVALID_STATE` | 409 | Not allowed in the current state (e.g. publishing an event without tiers) |
 | `CONFLICT` | 409 | The request conflicts with existing data |
-| `SEAT_UNAVAILABLE`, `SOLD_OUT`, `LIMIT_EXCEEDED`, `HOLD_EXPIRED`, `SALE_NOT_OPEN` | 409 | Booking errors (Phase 2) |
+| `SEAT_UNAVAILABLE` | 409 | One or more seats were just taken (`unavailableSeatIds`) |
+| `SOLD_OUT` | 409 | Not enough GA tickets left (`tierId`, `remaining`) |
+| `LIMIT_EXCEEDED` | 409 | Over the per-user ticket limit (`limit`, `alreadyHeldOrOwned`) |
+| `HOLD_EXPIRED` | 409 | The hold ran out before the order or payment |
+| `SALE_NOT_OPEN` | 409 | Outside the sale window (`saleOpensAt`, `saleClosesAt`) |
+| `PAYMENT_DECLINED` | 402 | The mock payment was declined; the order stays `PENDING` |
 | `NOT_ADMITTED` | 403 | Flash drop: no admission token yet (Phase 3) |
-| `RATE_LIMITED` | 429 | Too many requests (Phase 2) |
+| `RATE_LIMITED` | 429 | Too many hold requests; wait `Retry-After` seconds |
 | `INTERNAL_ERROR` | 500 | Unexpected server error (details are only in the server log) |
 
 ### Roles
@@ -57,7 +66,8 @@ Every error is an RFC 7807 `ProblemDetail` (`Content-Type: application/problem+j
 | `GET /api/events/**`, `/api/health`, register, login | Everyone |
 | `/api/organizer/**` | `ORGANIZER` (own events only) and `ADMIN` (any event) |
 | `/api/admin/**` | `ADMIN` |
-| `/api/checkin/**` | `GATE_STAFF` and `ADMIN` |
+| `/api/checkin` | `GATE_STAFF` (assigned events only) and `ADMIN` |
+| `/api/events/{id}/checkin/stats` | Assigned `GATE_STAFF`, the event's `ORGANIZER`, `ADMIN` |
 | Any other `/api/**` | Any logged-in user |
 
 Registration always creates a `STUDENT`. Other roles are given by an admin. A role change takes effect at the user's next login.
@@ -304,10 +314,178 @@ Response `200`: the updated user. Admins cannot change their own role (`409 INVA
 
 ---
 
+## Booking
+
+### `POST /api/events/{id}/holds`
+
+Holds seats or GA tickets for the logged-in user for the event's `holdMinutes` (default 5). It's all or nothing: if any requested seat is gone, nothing is held.
+
+Seated events:
+
+```json
+{ "seatIds": [101, 102] }
+```
+
+General admission:
+
+```json
+{ "tierId": 4, "quantity": 2 }
+```
+
+Response `201`:
+
+```json
+{
+  "holdId": "1b5c...", "eventId": 1, "status": "ACTIVE", "expiresAt": "2026-10-20T13:05:00Z",
+  "quantity": 2, "tierId": null,
+  "seats": [ { "id": 101, "section": "Front", "row": "A", "number": 1, "tierId": 1 } ]
+}
+```
+
+Errors:
+
+- `SALE_NOT_OPEN`
+- `SEAT_UNAVAILABLE`
+- `SOLD_OUT`
+- `LIMIT_EXCEEDED`: tickets held plus tickets owned may not exceed `maxTicketsPerUser`.
+- `RATE_LIMITED`: each user gets 5 requests per second and 30 per minute, counting every hold request, including invalid ones.
+- `VALIDATION_FAILED`
+
+A seat whose hold has expired counts as free right away, even before the cleanup job (every 5 s) runs.
+
+### `DELETE /api/holds/{id}`
+
+Cancels your hold and frees its seats or tickets. Response `204`. Cancelling twice is harmless. Someone else's hold gives `404`.
+
+### `POST /api/orders`
+
+Header: `Idempotency-Key`. Body:
+
+```json
+{ "holdId": "1b5c..." }
+```
+
+Creates a `PENDING` order for an active hold. The response is `201` for a new order, or `200` with the existing order when retried. A hold has at most one order, so a second request for the same hold returns that order even with a new key. Errors:
+
+- `HOLD_EXPIRED`
+- `NOT_FOUND`: not your hold.
+- `CONFLICT`: the key was already used for a different hold.
+
+Response (also returned by `GET /api/orders/{id}` and a successful payment):
+
+```json
+{
+  "id": 12, "eventId": 1, "eventTitle": "Rhythm Night", "holdId": "1b5c...",
+  "status": "PENDING", "amountPaise": 159800, "createdAt": "...", "paidAt": null,
+  "holdExpiresAt": "2026-10-20T13:05:00Z",
+  "items": [ { "tierId": 1, "tierName": "VIP", "unitPricePaise": 79900, "quantity": 1,
+               "seat": { "id": 101, "section": "Front", "row": "A", "number": 1, "tierId": 1 } } ],
+  "ticketIds": []
+}
+```
+
+GA orders have one item with `quantity` and `seat: null`. Once the hold has expired or been cancelled, a seated order may list no items.
+
+### `GET /api/orders/{id}`
+
+Your order. Someone else's gives `404`.
+
+---
+
+## Mock payments
+
+### `POST /api/payments/mock/{orderId}`
+
+Header: `Idempotency-Key`. Body: `{ "outcome": "SUCCESS" }` or `{ "outcome": "FAIL" }`. The fake gateway waits 0.5 to 2 s before answering.
+
+| Result | Status | Body |
+|---|---|---|
+| Paid | `200` | The order with `status: "PAID"`, `paidAt` and `ticketIds` |
+| Declined (`FAIL`) | `402 PAYMENT_DECLINED` | `orderId`, `orderStatus: "PENDING"`. Retry with a new key while the hold lasts |
+| Hold ran out | `409 HOLD_EXPIRED` | `orderId`, `orderStatus: "FAILED"`. The hold's seats are freed |
+
+Paying is one transaction with the order row locked. A retry with the same key gets the same answer. Paying an order that is already `PAID`, even with a new key, returns it unchanged. The confirmation email is sent after the payment commits. It contains a PDF with every ticket's QR code, plus an `.ics` calendar file, and is caught by Mailpit in development.
+
+---
+
+## Tickets
+
+All ticket endpoints only show your own tickets. Anyone else's give `404`.
+
+### `GET /api/me/tickets`
+
+Your tickets, soonest event first:
+
+```json
+[{
+  "id": "9b88d636-...", "orderId": 12, "eventId": 1, "eventSlug": "rhythm-night-saturday-showcase",
+  "eventTitle": "Rhythm Night", "venueName": "Main Auditorium, TIET", "startsAt": "...", "endsAt": "...",
+  "tierId": 1, "tierName": "VIP", "tierColor": "#ff3d81", "pricePaise": 79900,
+  "section": "Front", "row": "A", "seatNumber": 1, "seatLabel": "Front · Row A · Seat 1",
+  "holderName": "Aarav Student", "code": "9b88d636-....1.mF3k...", "checkedInAt": null, "issuedAt": "..."
+}]
+```
+
+`code` is the text in the QR code: `ticketId.eventId.signature`, where the signature is an HMAC-SHA256 with the server's `QR_SECRET`. The seat fields are `null` and `seatLabel` is `"General admission"` for GA tickets.
+
+### `GET /api/tickets/{id}`
+
+One ticket, same shape as above.
+
+### `GET /api/tickets/{id}/qr.png`
+
+The QR code as a 480×480 PNG.
+
+### `GET /api/tickets/{id}/pdf`
+
+The ticket as a PDF download (A6, with the QR code).
+
+### `GET /api/tickets/{id}/calendar.ics`
+
+An iCalendar file for the event.
+
+---
+
+## Check-in
+
+### `POST /api/checkin`
+
+```json
+{ "eventId": 1, "code": "9b88d636-....1.mF3k..." }
+```
+
+For `GATE_STAFF` assigned to the event, or an `ADMIN`. Always `200`; the result is in `result`:
+
+| `result` | Meaning |
+|---|---|
+| `VALID` | First scan; the ticket is now checked in |
+| `ALREADY_USED` | Scanned before; `checkedInAt` and `checkedInBy` say when and by whom |
+| `INVALID` | Not a FestPass code, a forged or changed signature, or an unknown ticket |
+| `WRONG_EVENT` | A real ticket for a different event (`message` names it) |
+
+```json
+{
+  "result": "ALREADY_USED", "message": "Already scanned", "ticketId": "9b88d636-...",
+  "holderName": "Aarav Student", "tierName": "VIP", "seatLabel": "Front · Row A · Seat 1",
+  "checkedInAt": "2026-10-27T13:42:00Z", "checkedInBy": "Kabir Gate"
+}
+```
+
+Check-in is a single conditional update, so a ticket is let in only once even if two gates scan it at the same moment. Every scan is logged.
+
+### `GET /api/events/{id}/checkin/stats`
+
+For assigned gate staff, the event's organizer, or an admin:
+
+```json
+{ "eventId": 1, "checkedIn": 120, "total": 202, "lastScan": { "result": "VALID", "scannedAt": "..." } }
+```
+
+---
+
 ## Coming in later phases
 
-- Booking (holds, orders, mock payments): Phase 2
-- Tickets: Phase 2
-- Check-in: Phase 2
-- Waiting room: Phase 3
-- Stress Arena: Phase 6
+- `X-Admission-Token` for flash-drop holds, and the waiting room (`/api/events/{id}/queue`): Phase 3
+- `GET /api/me/passport`: Phase 5
+- `GET /api/organizer/events/{id}/dashboard`: Phase 5
+- Stress Arena (`/api/admin/arena/**`): Phase 6

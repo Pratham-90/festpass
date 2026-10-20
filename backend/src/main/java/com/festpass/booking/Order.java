@@ -11,7 +11,10 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-/** One order per hold (unique hold_id); retries with the same idempotency key return the same order. */
+/**
+ * One order per hold (unique hold_id); retries with the same idempotency key return the same order.
+ * Status changes only happen while the order row is locked (SELECT ... FOR UPDATE).
+ */
 @Entity
 @Table(name = "orders")
 public class Order {
@@ -56,6 +59,15 @@ public class Order {
         this.amountPaise = amountPaise;
         this.status = Status.PENDING;
         this.createdAt = createdAt;
+    }
+
+    public void markPaid(Instant now) {
+        this.status = Status.PAID;
+        this.paidAt = now;
+    }
+
+    public void markFailed() {
+        this.status = Status.FAILED;
     }
 
     public Long getId() { return id; }

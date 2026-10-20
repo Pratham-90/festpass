@@ -41,6 +41,7 @@ public class SecurityConfig {
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/health", "/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/events/*/checkin/**").hasAnyRole("GATE_STAFF", "ORGANIZER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/events", "/api/events/**").permitAll()
                         .requestMatchers("/api/organizer/**").hasAnyRole("ORGANIZER", "ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

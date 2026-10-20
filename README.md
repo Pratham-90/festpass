@@ -102,6 +102,7 @@ The backend reads these environment variables (defaults suit the local Docker Co
 | `DB_URL` | `jdbc:postgresql://localhost:5432/festpass` |
 | `DB_USERNAME` / `DB_PASSWORD` | `festpass` / `festpass` |
 | `MAIL_HOST` / `MAIL_PORT` | `localhost` / `1025` |
+| `QR_SECRET` | a dev-only value. **Set your own (at least 16 characters) anywhere shared**, since it signs every ticket's QR code |
 | `PORT` | `8080` |
 
 ## Project layout

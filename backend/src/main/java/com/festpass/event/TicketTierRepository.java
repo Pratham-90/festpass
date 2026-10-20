@@ -23,4 +23,18 @@ public interface TicketTierRepository extends JpaRepository<TicketTier, Long> {
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update TicketTier t set t.capacity = t.capacity + :seats where t.id = :tierId")
     int addCapacity(Long tierId, int seats);
+
+    /**
+     * General admission: reserves tickets only if they fit. 0 rows means sold out.
+     * The row lock makes concurrent reservations queue up, and each re-checks the capacity.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query(nativeQuery = true, value = """
+            UPDATE ticket_tiers SET reserved = reserved + :quantity
+            WHERE id = :tierId AND event_id = :eventId AND reserved + :quantity <= capacity""")
+    int reserve(Long tierId, Long eventId, int quantity);
+
+    @Modifying(flushAutomatically = true)
+    @Query(nativeQuery = true, value = "UPDATE ticket_tiers SET reserved = reserved - :quantity WHERE id = :tierId")
+    int unreserve(Long tierId, int quantity);
 }

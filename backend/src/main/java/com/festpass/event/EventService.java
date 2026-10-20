@@ -95,6 +95,17 @@ public class EventService {
                 .orElseThrow(() -> ApiException.notFound("Event"));
     }
 
+    /**
+     * A published event that tickets can be booked for. Unlike {@link #requirePublic}, Stress Arena
+     * sandbox events are allowed, because the bots book through the same API.
+     */
+    @Transactional(readOnly = true)
+    public Event requireBookable(Long eventId) {
+        return events.findById(eventId)
+                .filter(e -> e.getStatus() == EventStatus.PUBLISHED)
+                .orElseThrow(() -> ApiException.notFound("Event"));
+    }
+
     private static boolean isPublic(Event e) {
         return e.getStatus() == EventStatus.PUBLISHED && !e.isSandbox();
     }

@@ -16,6 +16,7 @@ public enum ErrorCode {
     SALE_NOT_OPEN(HttpStatus.CONFLICT),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS),
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST),
+    PAYMENT_DECLINED(HttpStatus.PAYMENT_REQUIRED),
 
     // Auth and general
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED),

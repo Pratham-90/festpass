@@ -415,7 +415,7 @@ Claude Code updates this section at the end of every phase.
 
 - [x] Phase 0: Project setup
 - [x] Phase 1: Backend foundations
-- [ ] Phase 2: Booking engine
+- [x] Phase 2: Booking engine
 - [ ] Phase 3: Real-time layer
 - [ ] Phase 4: Frontend core
 - [ ] Phase 5: The fun layer
@@ -425,6 +425,16 @@ Claude Code updates this section at the end of every phase.
 ### Notes and deferred items
 - **Phase 0:** Versions chosen: Spring Boot 3.5.16, Maven 3.9.16 (via the wrapper, no global Maven needed), Vite 8, Tailwind CSS 4 (design tokens live in the `@theme` block of `frontend/src/styles/index.css`), React 18.3.1. Only the dependencies needed so far are installed; the rest of Section 2 is added in the phase that uses it.
 - **Phase 0:** The CI workflow (`.github/workflows/ci.yml`) has not run yet because the repository has no GitHub remote. Its three steps (`mvnw verify`, `npm ci && npm run build`, `docker build`) all pass locally.
+- **Phase 2:** Decisions and changes:
+  - `holds.quantity` is now set for seated holds too: it's the number of seats (migration V3). Payment checks that the number of seats it books equals this number. That number can't be recovered later, because seats taken over by another user no longer point at the old hold. It also makes the per-user limit a simple sum.
+  - Declined mock payments (`FAIL`) leave the order `PENDING` so it can be retried with a new key while the hold lasts. The new code is `PAYMENT_DECLINED` (402). Only an expired or cancelled hold makes an order `FAILED`.
+  - The rate limit counts every hold request, including invalid ones. It runs as an interceptor before the body is read. It uses the injected `Clock`, so tests control refills.
+  - The confirmation email is sent `@Async` after commit. It's skipped for sandbox (Stress Arena) events.
+  - Booking works on any `PUBLISHED` event, sandbox events included, since the bots use the same API. Flash-drop admission tokens come in Phase 3.
+  - Check-in stats (`GET /api/events/{id}/checkin/stats`) are visible to assigned gate staff, the event's organizer and admins.
+  - The app clock ticks in microseconds (PostgreSQL's precision). Nanosecond timestamps were rounded by the database and made a test flaky.
+  - Known limit: an expired GA hold keeps its tickets counted in `reserved` until the expiry job runs (at most about 5 s). Seats don't have this delay.
+- **Phase 2:** Tests use a frozen `MutableClock`, a Mailpit Testcontainer and `festpass.scheduling.enabled=false`, so jobs only run when a test calls them.
 - **Phase 1:** Decisions made where the plan was open:
   - Public registration always creates a `STUDENT`. Other roles are set by an admin (`PUT /api/admin/users/{id}/role`) and take effect at the user's next login.
   - `ADMIN` can use every organizer endpoint for any event. Organizers only for their own (`403` otherwise).

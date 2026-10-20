@@ -3,9 +3,13 @@ package com.festpass.ticket;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.time.Instant;
 import java.util.UUID;
+import org.springframework.data.domain.Persistable;
 
 /**
  * A ticket. The database allows at most one ticket per seat (partial unique index on seat_id),
@@ -13,7 +17,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "tickets")
-public class Ticket {
+public class Ticket implements Persistable<UUID> {
 
     @Id
     private UUID id;
@@ -43,6 +47,9 @@ public class Ticket {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Transient
+    private boolean isNew = true;
+
     protected Ticket() {}
 
     public Ticket(UUID id, Long orderId, Long eventId, Long tierId, Long seatId, String holderName, Instant createdAt) {
@@ -55,6 +62,7 @@ public class Ticket {
         this.createdAt = createdAt;
     }
 
+    @Override
     public UUID getId() { return id; }
     public Long getOrderId() { return orderId; }
     public Long getEventId() { return eventId; }
@@ -64,4 +72,15 @@ public class Ticket {
     public Instant getCheckedInAt() { return checkedInAt; }
     public Long getCheckedInBy() { return checkedInBy; }
     public Instant getCreatedAt() { return createdAt; }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostLoad
+    @PostPersist
+    void markNotNew() {
+        isNew = false;
+    }
 }

@@ -18,6 +18,10 @@ spring:
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
+    properties:
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
   mvc:
     problemdetails:
       enabled: true
@@ -35,3 +39,18 @@ server:
 
 festpass:
   mail-from: ${MAIL_FROM:tickets@festpass.local}
+  # Times in PDFs, emails and calendar descriptions are shown in this zone.
+  display-zone: Asia/Kolkata
+  # Signs QR codes (HMAC-SHA256). Set QR_SECRET in any shared or deployed environment.
+  qr-secret: ${QR_SECRET:dev-only-qr-secret-change-me}
+  scheduling:
+    enabled: true
+  holds:
+    expiry-interval: 5s
+  payment:
+    # The mock gateway waits a random time in this range to feel like a real one.
+    mock-latency-min: 500ms
+    mock-latency-max: 2000ms
+  rate-limit:
+    holds-per-second: 5
+    holds-per-minute: 30

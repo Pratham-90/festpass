@@ -26,7 +26,7 @@ Flash-sale ticketing for college fests. Full spec and phase plan: `PLAN.md` (bui
 - Document every endpoint in `docs/api.md` as it is built.
 
 ## Testing
-- Integration tests extend `IntegrationTest` (Testcontainers PostgreSQL). Never H2.
+- Integration tests extend `IntegrationTest` (Testcontainers PostgreSQL + Mailpit, frozen `MutableClock`). Never H2.
 - Concurrency tests start threads together with a `CountDownLatch` and assert exact counts.
 - Time-dependent tests move the `Clock`; never `Thread.sleep` to wait for expiry.
 - If Docker is unavailable, say so. Never skip or weaken tests.
