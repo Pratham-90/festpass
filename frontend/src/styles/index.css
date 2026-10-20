@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Every colour, font and radius used by components comes from here,
+ * so the visual design can be restyled in one place.
+ * Tailwind turns each token into utilities, e.g. --color-accent -> bg-accent, text-accent.
+ */
+@theme {
+  --color-night: #0a0a12;
+  --color-surface: #14141f;
+  --color-surface-raised: #1e1e2d;
+  --color-line: #2a2a3d;
+  --color-ink: #f4f4f8;
+  --color-ink-muted: #9a9ab0;
+
+  --color-accent: #ff3d81;
+  --color-accent-2: #7c5cff;
+
+  --color-success: #22e39a;
+  --color-warning: #ffb020;
+  --color-danger: #ff4d5e;
+
+  --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1.25rem;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-night text-ink font-body antialiased;
+    min-height: 100dvh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

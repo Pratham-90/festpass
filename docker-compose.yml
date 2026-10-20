@@ -1,0 +1,43 @@
+# Local development:   docker compose up -d postgres mailpit   (then run the backend and frontend yourself)
+# Full app in Docker:  docker compose up --build                (UI + API on http://localhost:8080)
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: festpass
+      POSTGRES_USER: festpass
+      POSTGRES_PASSWORD: festpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U festpass -d festpass"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # web inbox: http://localhost:8025
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/festpass
+      DB_USERNAME: festpass
+      DB_PASSWORD: festpass
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
