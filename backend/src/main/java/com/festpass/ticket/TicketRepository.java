@@ -32,4 +32,6 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     long countByEventId(Long eventId);
 
     long countByEventIdAndCheckedInAtIsNotNull(Long eventId);
+
+    long countByEventIdAndCreatedAtAfter(Long eventId, Instant after);
 }

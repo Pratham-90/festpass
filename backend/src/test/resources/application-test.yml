@@ -1,0 +1,9 @@
+# Used by IntegrationTest (@ActiveProfiles("test")).
+festpass:
+  # Background jobs (hold expiry, queue admission) only run when a test calls them.
+  scheduling:
+    enabled: false
+  # The mock payment gateway answers instantly.
+  payment:
+    mock-latency-min: 0ms
+    mock-latency-max: 0ms

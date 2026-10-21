@@ -32,12 +32,13 @@ public class BookingController {
         this.orderService = orderService;
     }
 
-    /** Rate limited per user by HoldRateLimitInterceptor. */
+    /** Rate limited per user by HoldRateLimitInterceptor. Flash drops need the X-Admission-Token header. */
     @PostMapping("/api/events/{eventId}/holds")
     @ResponseStatus(HttpStatus.CREATED)
     public HoldView hold(@PathVariable Long eventId, @Valid @RequestBody HoldRequest request,
+                         @RequestHeader(value = "X-Admission-Token", required = false) String admissionToken,
                          @AuthenticationPrincipal AppUserPrincipal me) {
-        return holdService.hold(eventId, request, me);
+        return holdService.hold(eventId, request, me, admissionToken);
     }
 
     @DeleteMapping("/api/holds/{holdId}")

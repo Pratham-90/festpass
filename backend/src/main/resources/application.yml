@@ -54,3 +54,12 @@ festpass:
   rate-limit:
     holds-per-second: 5
     holds-per-minute: 30
+  queue:
+    # Flash-drop waiting room: admit this many people every interval once the sale opens.
+    batch-size: 50
+    admit-interval: 5s
+    # How long an admitted person may start holding seats.
+    admission-window: 10m
+  websocket:
+    # Other origins allowed to open /ws (same-origin is always allowed). The Vite dev server runs on :5173.
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173

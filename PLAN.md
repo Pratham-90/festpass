@@ -416,7 +416,7 @@ Claude Code updates this section at the end of every phase.
 - [x] Phase 0: Project setup
 - [x] Phase 1: Backend foundations
 - [x] Phase 2: Booking engine
-- [ ] Phase 3: Real-time layer
+- [x] Phase 3: Real-time layer
 - [ ] Phase 4: Frontend core
 - [ ] Phase 5: The fun layer
 - [ ] Phase 6: Stress Arena
@@ -425,6 +425,15 @@ Claude Code updates this section at the end of every phase.
 ### Notes and deferred items
 - **Phase 0:** Versions chosen: Spring Boot 3.5.16, Maven 3.9.16 (via the wrapper, no global Maven needed), Vite 8, Tailwind CSS 4 (design tokens live in the `@theme` block of `frontend/src/styles/index.css`), React 18.3.1. Only the dependencies needed so far are installed; the rest of Section 2 is added in the phase that uses it.
 - **Phase 0:** The CI workflow (`.github/workflows/ci.yml`) has not run yet because the repository has no GitHub remote. Its three steps (`mvnw verify`, `npm ci && npm run build`, `docker build`) all pass locally.
+- **Phase 3:** Decisions and changes:
+  - Services publish Spring application events, and the realtime layer sends them with `@TransactionalEventListener`, so only committed changes reach browsers. Seat updates use `UPDATE ... RETURNING id`, so only seats that really changed are announced. A seat taken over by another hold is never reported as freed.
+  - `StompGuard` rejects all client `SEND` frames, so browsers can't fake seat updates. Subscriptions are limited: check-ins for gate staff, organizers and admins; arena for admins; `/user/queue/*` for logged-in users. Visitors who aren't logged in can watch seats, stats and queue counters.
+  - `setPreserveReceiveOrder` is deliberately off. With it on, frames refused by the guard were dropped silently instead of getting an `ERROR` frame, and still counted as viewers.
+  - Check-in broadcasts carry seat and tier, not holder names, to keep personal data off a shared topic.
+  - Stats are only computed for events someone is watching, and re-sent every 5 s while watched so `soldLastMinute` stays current.
+  - Admission tokens are HMAC-signed (`userId.eventId.expiry.signature`) and checked without server state. They are reusable for the 10-minute window; the per-user limit still caps tickets.
+  - The waiting room is in memory; see `docs/architecture.md`. The single-instance limitation is documented there for the queue, the STOMP broker and the rate limiter.
+  - Test profile: `application-test.yml` replaces the inline test properties.
 - **Phase 2:** Decisions and changes:
   - `holds.quantity` is now set for seated holds too: it's the number of seats (migration V3). Payment checks that the number of seats it books equals this number. That number can't be recovered later, because seats taken over by another user no longer point at the old hold. It also makes the per-user limit a simple sum.
   - Declined mock payments (`FAIL`) leave the order `PENDING` so it can be retried with a new key while the hold lasts. The new code is `PAYMENT_DECLINED` (402). Only an expired or cancelled hold makes an order `FAILED`.

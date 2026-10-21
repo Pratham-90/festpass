@@ -2,18 +2,23 @@ package com.festpass.payment;
 
 import com.festpass.auth.AppUserPrincipal;
 import com.festpass.booking.Hold;
+import com.festpass.booking.HoldEnded;
 import com.festpass.booking.HoldReleaser;
 import com.festpass.booking.HoldRepository;
 import com.festpass.booking.Order;
 import com.festpass.booking.OrderRepository;
 import com.festpass.common.ApiException;
 import com.festpass.common.ErrorCode;
-import com.festpass.seating.SeatRepository;
+import com.festpass.event.AvailabilityChanged;
+import com.festpass.seating.SeatStatus;
+import com.festpass.seating.SeatStatusWriter;
+import com.festpass.seating.SeatsChanged;
 import com.festpass.ticket.OrderPaidEvent;
 import com.festpass.ticket.TicketIssuer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,7 +47,7 @@ public class MockPaymentService {
 
     private final OrderRepository orders;
     private final HoldRepository holds;
-    private final SeatRepository seats;
+    private final SeatStatusWriter seatWriter;
     private final PaymentAttemptRepository attempts;
     private final HoldReleaser releaser;
     private final TicketIssuer ticketIssuer;
@@ -52,14 +57,14 @@ public class MockPaymentService {
     private final Duration minLatency;
     private final Duration maxLatency;
 
-    public MockPaymentService(OrderRepository orders, HoldRepository holds, SeatRepository seats,
+    public MockPaymentService(OrderRepository orders, HoldRepository holds, SeatStatusWriter seatWriter,
                               PaymentAttemptRepository attempts, HoldReleaser releaser, TicketIssuer ticketIssuer,
                               ApplicationEventPublisher events, TransactionTemplate tx, Clock clock,
                               @Value("${festpass.payment.mock-latency-min}") Duration minLatency,
                               @Value("${festpass.payment.mock-latency-max}") Duration maxLatency) {
         this.orders = orders;
         this.holds = holds;
-        this.seats = seats;
+        this.seatWriter = seatWriter;
         this.attempts = attempts;
         this.releaser = releaser;
         this.ticketIssuer = ticketIssuer;
@@ -103,12 +108,18 @@ public class MockPaymentService {
         if (holds.convert(hold.getId(), now) != 1) {
             throw new HoldLostException();
         }
-        if (!hold.isGeneralAdmission() && seats.book(hold.getId()) != hold.getQuantity()) {
-            throw new HoldLostException(); // rolls back the conversion too
+        if (!hold.isGeneralAdmission()) {
+            List<Long> booked = seatWriter.book(hold.getId());
+            if (booked.size() != hold.getQuantity()) {
+                throw new HoldLostException(); // rolls back the conversion too
+            }
+            events.publishEvent(new SeatsChanged(order.getEventId(), booked, SeatStatus.BOOKED));
         }
         ticketIssuer.issue(order, hold, user.name(), now);
         order.markPaid(now);
         events.publishEvent(new OrderPaidEvent(order.getId()));
+        events.publishEvent(new AvailabilityChanged(order.getEventId()));
+        events.publishEvent(new HoldEnded(hold.getId(), hold.getUserId(), hold.getEventId(), Hold.Status.CONVERTED));
         return record(order, key, Outcome.SUCCESS, now);
     }
 

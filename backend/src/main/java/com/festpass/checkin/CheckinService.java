@@ -18,6 +18,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,11 +37,12 @@ public class CheckinService {
     private final TicketTierRepository tiers;
     private final SeatRepository seats;
     private final UserRepository users;
+    private final ApplicationEventPublisher publisher;
     private final Clock clock;
 
     public CheckinService(TicketCodes codes, TicketRepository tickets, CheckinScanRepository scans,
                           EventRepository events, GateAssignmentRepository gateAssignments, TicketTierRepository tiers,
-                          SeatRepository seats, UserRepository users, Clock clock) {
+                          SeatRepository seats, UserRepository users, ApplicationEventPublisher publisher, Clock clock) {
         this.codes = codes;
         this.tickets = tickets;
         this.scans = scans;
@@ -49,6 +51,7 @@ public class CheckinService {
         this.tiers = tiers;
         this.seats = seats;
         this.users = users;
+        this.publisher = publisher;
         this.clock = clock;
     }
 
@@ -126,6 +129,7 @@ public class CheckinService {
 
     private ScanResponse log(Long eventId, UUID ticketId, AppUserPrincipal staff, Instant now, ScanResponse response) {
         scans.save(new CheckinScan(eventId, ticketId, staff.id(), response.result(), now));
+        publisher.publishEvent(new CheckinRecorded(eventId, response.result(), response.tierName(), response.seatLabel(), now));
         return response;
     }
 }

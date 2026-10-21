@@ -6,13 +6,17 @@ import com.festpass.booking.BookingDtos.HoldView;
 import com.festpass.booking.BookingDtos.SeatRef;
 import com.festpass.common.ApiException;
 import com.festpass.common.ErrorCode;
+import com.festpass.event.AvailabilityChanged;
 import com.festpass.event.Event;
 import com.festpass.event.EventEnums.SeatingMode;
 import com.festpass.event.EventService;
 import com.festpass.event.TicketTier;
 import com.festpass.event.TicketTierRepository;
 import com.festpass.seating.Seat;
+import com.festpass.queue.WaitingRoom;
 import com.festpass.seating.SeatRepository;
+import com.festpass.seating.SeatStatus;
+import com.festpass.seating.SeatsChanged;
 import com.festpass.ticket.TicketRepository;
 import java.time.Clock;
 import java.time.Duration;
@@ -22,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,11 +45,14 @@ public class HoldService {
     private final OrderRepository orders;
     private final BookingLocks locks;
     private final HoldReleaser releaser;
+    private final WaitingRoom waitingRoom;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public HoldService(EventService eventService, HoldRepository holds, SeatRepository seats,
                        TicketTierRepository tiers, TicketRepository tickets, OrderRepository orders,
-                       BookingLocks locks, HoldReleaser releaser, Clock clock) {
+                       BookingLocks locks, HoldReleaser releaser, WaitingRoom waitingRoom,
+                       ApplicationEventPublisher events, Clock clock) {
         this.eventService = eventService;
         this.holds = holds;
         this.seats = seats;
@@ -53,17 +61,23 @@ public class HoldService {
         this.orders = orders;
         this.locks = locks;
         this.releaser = releaser;
+        this.waitingRoom = waitingRoom;
+        this.events = events;
         this.clock = clock;
     }
 
+    /** @param admissionToken required for flash drops: proof of having come through the waiting room */
     @Transactional
-    public HoldView hold(Long eventId, HoldRequest request, AppUserPrincipal user) {
+    public HoldView hold(Long eventId, HoldRequest request, AppUserPrincipal user, String admissionToken) {
         Instant now = Instant.now(clock);
         Event event = eventService.requireBookable(eventId);
         if (now.isBefore(event.getSaleOpensAt()) || !now.isBefore(event.getSaleClosesAt())) {
             throw new ApiException(ErrorCode.SALE_NOT_OPEN,
                     now.isBefore(event.getSaleOpensAt()) ? "Tickets aren't on sale yet" : "Ticket sales have closed",
                     Map.of("saleOpensAt", event.getSaleOpensAt(), "saleClosesAt", event.getSaleClosesAt()));
+        }
+        if (event.isFlashDrop()) {
+            waitingRoom.requireAdmitted(eventId, user.id(), admissionToken, now);
         }
 
         boolean seated = event.getSeatingMode() == SeatingMode.SEATED;
@@ -93,9 +107,13 @@ public class HoldService {
                 throw new ApiException(ErrorCode.SEAT_UNAVAILABLE, "Some of those seats were just taken",
                         Map.of("unavailableSeatIds", List.copyOf(unavailable)));
             }
-        } else if (tiers.reserve(gaTier.getId(), eventId, quantity) == 0) {
-            throw new ApiException(ErrorCode.SOLD_OUT, "Not enough tickets left in " + gaTier.getName(),
-                    Map.of("tierId", gaTier.getId(), "remaining", Math.max(0, gaTier.getCapacity() - gaTier.getReserved())));
+            events.publishEvent(new SeatsChanged(eventId, List.copyOf(seatIds), SeatStatus.HELD));
+        } else {
+            if (tiers.reserve(gaTier.getId(), eventId, quantity) == 0) {
+                throw new ApiException(ErrorCode.SOLD_OUT, "Not enough tickets left in " + gaTier.getName(),
+                        Map.of("tierId", gaTier.getId(), "remaining", Math.max(0, gaTier.getCapacity() - gaTier.getReserved())));
+            }
+            events.publishEvent(new AvailabilityChanged(eventId));
         }
 
         return view(holdId, eventId, Hold.Status.ACTIVE, expiresAt, quantity, seated ? null : gaTier.getId());

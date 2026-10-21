@@ -1,7 +1,12 @@
 package com.festpass.booking;
 
+import com.festpass.event.AvailabilityChanged;
 import com.festpass.event.TicketTierRepository;
-import com.festpass.seating.SeatRepository;
+import com.festpass.seating.SeatStatus;
+import com.festpass.seating.SeatStatusWriter;
+import com.festpass.seating.SeatsChanged;
+import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,13 +19,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class HoldReleaser {
 
     private final HoldRepository holds;
-    private final SeatRepository seats;
+    private final SeatStatusWriter seatWriter;
     private final TicketTierRepository tiers;
+    private final ApplicationEventPublisher events;
 
-    public HoldReleaser(HoldRepository holds, SeatRepository seats, TicketTierRepository tiers) {
+    public HoldReleaser(HoldRepository holds, SeatStatusWriter seatWriter, TicketTierRepository tiers,
+                        ApplicationEventPublisher events) {
         this.holds = holds;
-        this.seats = seats;
+        this.seatWriter = seatWriter;
         this.tiers = tiers;
+        this.events = events;
     }
 
     /**
@@ -37,9 +45,14 @@ public class HoldReleaser {
         }
         if (hold.isGeneralAdmission()) {
             tiers.unreserve(hold.getTierId(), hold.getQuantity());
+            events.publishEvent(new AvailabilityChanged(hold.getEventId()));
         } else {
-            seats.free(hold.getId());
+            List<Long> freed = seatWriter.free(hold.getId());
+            if (!freed.isEmpty()) {
+                events.publishEvent(new SeatsChanged(hold.getEventId(), freed, SeatStatus.AVAILABLE));
+            }
         }
+        events.publishEvent(new HoldEnded(hold.getId(), hold.getUserId(), hold.getEventId(), endStatus));
         return true;
     }
 }

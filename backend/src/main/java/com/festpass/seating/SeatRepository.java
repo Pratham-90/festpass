@@ -54,16 +54,7 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
               AND (status = 'AVAILABLE' OR (status = 'HELD' AND hold_expires_at < :now))""")
     int hold(UUID holdId, Instant expiresAt, Long eventId, Collection<Long> seatIds, Instant now);
 
-    @Modifying(flushAutomatically = true)
-    @Query(nativeQuery = true, value = "UPDATE seats SET status = 'BOOKED' WHERE hold_id = :holdId AND status = 'HELD'")
-    int book(UUID holdId);
-
-    /** Frees the seats still held by this hold. Seats already taken over by a newer hold are untouched. */
-    @Modifying(flushAutomatically = true)
-    @Query(nativeQuery = true, value = """
-            UPDATE seats SET status = 'AVAILABLE', hold_id = NULL, hold_expires_at = NULL
-            WHERE hold_id = :holdId AND status = 'HELD'""")
-    int free(UUID holdId);
+    // Booking and freeing seats: see SeatStatusWriter, which reports the changed seat ids.
 
     @Query(nativeQuery = true, value = """
             SELECT COALESCE(SUM(t.price_paise), 0)

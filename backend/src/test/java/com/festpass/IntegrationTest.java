@@ -21,20 +21,18 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * Base class for integration tests: full Spring context, MockMvc, a real PostgreSQL and Mailpit
- * (Testcontainers), and a {@link MutableClock}. Background jobs are off so tests run them explicitly,
- * and the mock payment gateway answers instantly.
+ * (Testcontainers), and a {@link MutableClock}. The "test" profile (application-test.yml) turns
+ * background jobs off so tests run them explicitly, and makes the mock payment gateway answer instantly.
  * All subclasses share one context and one database, so tests use unique data instead of cleaning up.
  */
-@SpringBootTest(properties = {
-        "festpass.scheduling.enabled=false",
-        "festpass.payment.mock-latency-min=0ms",
-        "festpass.payment.mock-latency-max=0ms"
-})
+@SpringBootTest
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Import({TestcontainersConfig.class, IntegrationTest.TestClockConfig.class})
 public abstract class IntegrationTest {
