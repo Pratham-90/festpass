@@ -7,7 +7,7 @@ Course project for **UCS553 Enterprise Web Application** (TIET) by Pratham Arora
 ## Tech stack
 
 - **Backend:** Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, PostgreSQL 16, Flyway, Spring Mail
-- **Frontend:** React 18, Vite, Tailwind CSS
+- **Frontend:** React 18, Vite, Tailwind CSS, React Router, TanStack Query, Framer Motion, STOMP over WebSocket
 - **Infra:** Docker Compose (PostgreSQL, Mailpit, app), GitHub Actions
 
 See [PLAN.md](PLAN.md) for the full design and build plan.
@@ -47,7 +47,7 @@ Maven does not need to be installed; the repository includes the Maven wrapper (
    npm run dev
    ```
 
-Open http://localhost:5173. The page shows "API UP" when the frontend can reach `/api/health` through the Vite proxy.
+Open http://localhost:5173 and log in with one of the dev accounts below, or sign up.
 
 Emails sent by the app are caught by Mailpit at http://localhost:8025.
 
@@ -62,7 +62,7 @@ The `dev` profile creates these accounts. They all use the password `festpass123
 | `gate@festpass.local` | Gate staff |
 | `admin@festpass.local` | Admin |
 
-It also creates three published events:
+It also creates three published events. On every start it moves them back into the future if their dates have passed:
 
 - **Rhythm Night: Saturday Showcase**: a seated auditorium show with 202 seats in 3 tiers.
 - **Open Air: Sunset Sessions**: general admission with 2 tiers.
@@ -104,6 +104,19 @@ The backend reads these environment variables (defaults suit the local Docker Co
 | `MAIL_HOST` / `MAIL_PORT` | `localhost` / `1025` |
 | `QR_SECRET` | a dev-only value. **Set your own (at least 16 characters) anywhere shared**, since it signs every ticket's QR code |
 | `PORT` | `8080` |
+
+## Frontend at a glance
+
+| Page | Path | Who |
+|---|---|---|
+| Discover (search, categories) | `/` | everyone |
+| Event (live seat map or ticket picker, waiting room for flash drops) | `/events/:slug` | everyone; booking needs a login |
+| Checkout (hold timer) → mock payment → confirmation | `/checkout/:id`, `/pay/:id`, `/orders/:id/confirmed` | logged in |
+| Ticket wallet and ticket (QR, PDF, calendar) | `/tickets`, `/tickets/:id` | logged in |
+| Organizer: events, new event, editor (tiers, section generator with live preview, gate staff, publish) | `/organizer/...` | organizers and admins |
+| Users and roles | `/admin/users` | admins |
+
+Code lives in `frontend/src`: `api/` (fetch wrapper, query hooks, error messages), `realtime/useStomp.js` (the one shared WebSocket connection), `components/` and `pages/`.
 
 ## Project layout
 

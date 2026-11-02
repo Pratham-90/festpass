@@ -377,7 +377,7 @@ Response (also returned by `GET /api/orders/{id}` and a successful payment):
 
 ```json
 {
-  "id": 12, "eventId": 1, "eventTitle": "Rhythm Night", "holdId": "1b5c...",
+  "id": 12, "eventId": 1, "eventSlug": "rhythm-night", "eventTitle": "Rhythm Night", "holdId": "1b5c...",
   "status": "PENDING", "amountPaise": 159800, "createdAt": "...", "paidAt": null,
   "holdExpiresAt": "2026-10-20T13:05:00Z",
   "items": [ { "tierId": 1, "tierName": "VIP", "unitPricePaise": 79900, "quantity": 1,

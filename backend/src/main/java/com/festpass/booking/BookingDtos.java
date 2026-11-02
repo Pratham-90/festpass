@@ -35,6 +35,6 @@ public final class BookingDtos {
     public record OrderItem(Long tierId, String tierName, long unitPricePaise, int quantity, SeatRef seat) {}
 
     public record OrderView(
-            Long id, Long eventId, String eventTitle, UUID holdId, Order.Status status, long amountPaise,
+            Long id, Long eventId, String eventSlug, String eventTitle, UUID holdId, Order.Status status, long amountPaise,
             Instant createdAt, Instant paidAt, Instant holdExpiresAt, List<OrderItem> items, List<UUID> ticketIds) {}
 }

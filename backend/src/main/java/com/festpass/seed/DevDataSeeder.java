@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -30,8 +31,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Sample data for local development ({@code dev} profile): one user per role and three
- * published events. Safe to run on every start: it only creates data once, but it always
- * moves the flash drop's sale opening to 3 minutes after startup so it can be tried again.
+ * published events. Safe to run on every start: it only creates data once, but it keeps the
+ * sample events in the future and moves the flash drop's sale opening to 3 minutes after startup,
+ * so the data works however long ago it was created.
  *
  * <p>All dev accounts use the password {@value #PASSWORD}. Never enable this profile in production.
  */
@@ -71,7 +73,7 @@ public class DevDataSeeder implements ApplicationRunner {
             log.info("Dev data created. Log in as student@, organizer@, gate@ or admin@festpass.local with password '{}'",
                     PASSWORD);
         }
-        rescheduleFlashDrop();
+        keepSampleEventsCurrent();
     }
 
     private void seed() {
@@ -136,13 +138,35 @@ public class DevDataSeeder implements ApplicationRunner {
         layoutService.addSection(event.id(), new SectionRequest(name, tier.id(), rows, seatsPerRow, aisleAfter), org);
     }
 
-    private void rescheduleFlashDrop() {
-        tx.executeWithoutResult(status -> events.findBySlug(FLASH_DROP_SLUG).ifPresent(event -> {
-            Instant opensAt = Instant.now(clock).plus(FLASH_DROP_DELAY).truncatedTo(ChronoUnit.SECONDS);
-            if (opensAt.isBefore(event.getSaleClosesAt())) {
-                event.setSaleOpensAt(opensAt);
-                log.info("Flash drop '{}' opens at {}", event.getTitle(), opensAt);
-            }
-        }));
+    /** How far ahead each sample event should start, so the dev data never goes stale. */
+    private static final Map<String, Duration> SAMPLE_STARTS_IN = Map.of(
+            "rhythm-night-saturday-showcase", Duration.ofDays(7),
+            "open-air-sunset-sessions", Duration.ofDays(14),
+            FLASH_DROP_SLUG, Duration.ofDays(3));
+
+    /**
+     * Moves sample events that have started (or start within a day) back into the future, keeping
+     * their length, with sales open now. The flash drop's sale always opens 3 minutes after startup.
+     */
+    private void keepSampleEventsCurrent() {
+        tx.executeWithoutResult(status -> {
+            Instant now = Instant.now(clock);
+            SAMPLE_STARTS_IN.forEach((slug, startsIn) -> events.findBySlug(slug).ifPresent(event -> {
+                if (event.getStartsAt().isBefore(now.plus(Duration.ofDays(1)))) {
+                    Duration length = Duration.between(event.getStartsAt(), event.getEndsAt());
+                    Instant start = now.plus(startsIn).truncatedTo(ChronoUnit.MINUTES);
+                    event.setStartsAt(start);
+                    event.setEndsAt(start.plus(length));
+                    event.setSaleClosesAt(start);
+                    event.setSaleOpensAt(now.minus(Duration.ofDays(1)).truncatedTo(ChronoUnit.MINUTES));
+                    log.info("Moved sample event '{}' to {}", event.getTitle(), start);
+                }
+                if (slug.equals(FLASH_DROP_SLUG)) {
+                    Instant opensAt = now.plus(FLASH_DROP_DELAY).truncatedTo(ChronoUnit.SECONDS);
+                    event.setSaleOpensAt(opensAt);
+                    log.info("Flash drop '{}' opens at {}", event.getTitle(), opensAt);
+                }
+            }));
+        });
     }
 }

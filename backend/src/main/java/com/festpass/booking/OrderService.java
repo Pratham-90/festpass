@@ -96,7 +96,9 @@ public class OrderService {
         Hold hold = holds.findById(order.getHoldId()).orElseThrow();
         Map<Long, TicketTier> tierById = tiers.findByEventIdOrderByIdAsc(order.getEventId()).stream()
                 .collect(Collectors.toMap(TicketTier::getId, Function.identity()));
-        String eventTitle = events.findById(order.getEventId()).map(e -> e.getTitle()).orElse(null);
+        var event = events.findById(order.getEventId());
+        String eventSlug = event.map(e -> e.getSlug()).orElse(null);
+        String eventTitle = event.map(e -> e.getTitle()).orElse(null);
 
         List<OrderItem> items;
         if (hold.isGeneralAdmission()) {
@@ -111,7 +113,7 @@ public class OrderService {
         }
         List<UUID> ticketIds = tickets.findByOrderIdOrderByCreatedAtAscIdAsc(order.getId()).stream()
                 .map(Ticket::getId).toList();
-        return new OrderView(order.getId(), order.getEventId(), eventTitle, order.getHoldId(), order.getStatus(),
+        return new OrderView(order.getId(), order.getEventId(), eventSlug, eventTitle, order.getHoldId(), order.getStatus(),
                 order.getAmountPaise(), order.getCreatedAt(), order.getPaidAt(), hold.getExpiresAt(), items, ticketIds);
     }
 }

@@ -1,66 +1,47 @@
-import { useEffect, useState } from 'react'
-import { api } from './api/client.js'
+import { Route, Routes } from 'react-router'
+import Layout from './components/Layout.jsx'
+import RequireAuth from './auth/RequireAuth.jsx'
+import DiscoverPage from './pages/DiscoverPage.jsx'
+import { LoginPage, RegisterPage } from './pages/AuthPages.jsx'
+import EventPage from './pages/EventPage.jsx'
+import CheckoutPage from './pages/CheckoutPage.jsx'
+import PaymentPage from './pages/PaymentPage.jsx'
+import OrderConfirmedPage from './pages/OrderConfirmedPage.jsx'
+import WalletPage from './pages/WalletPage.jsx'
+import TicketPage from './pages/TicketPage.jsx'
+import OrganizerEventsPage from './pages/organizer/OrganizerEventsPage.jsx'
+import NewEventPage from './pages/organizer/NewEventPage.jsx'
+import EventEditorPage from './pages/organizer/EventEditorPage.jsx'
+import AdminUsersPage from './pages/admin/AdminUsersPage.jsx'
+import NotFoundPage from './pages/NotFoundPage.jsx'
 
-// Phase 0 placeholder: proves the React app can reach the Spring Boot API.
+const ORGANIZERS = ['ORGANIZER', 'ADMIN']
+
 export default function App() {
-  const [health, setHealth] = useState({ state: 'loading' })
-
-  useEffect(() => {
-    api('/health')
-      .then((data) => setHealth({ state: 'ok', data }))
-      .catch((error) => setHealth({ state: 'error', error }))
-  }, [])
-
   return (
-    <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-8 px-4 py-12">
-      <div>
-        <p className="text-sm font-semibold tracking-[0.3em] text-accent uppercase">UCS553 · TIET</p>
-        <h1 className="font-display mt-2 text-5xl font-black tracking-tight sm:text-6xl">
-          Fest<span className="text-accent">Pass</span>
-        </h1>
-        <p className="mt-3 text-lg text-ink-muted">
-          Flash-sale tickets for college fests. Live seats, zero overselling.
-        </p>
-      </div>
+    <Routes>
+      {/* The mock payment page is deliberately outside the FestPass layout: it plays an external gateway. */}
+      <Route path="/pay/:orderId" element={<RequireAuth><PaymentPage /></RequireAuth>} />
 
-      <section className="rounded-card border border-line bg-surface p-5">
-        <h2 className="text-sm font-semibold text-ink-muted">Backend status</h2>
-        <HealthStatus health={health} />
-      </section>
-    </main>
-  )
-}
+      <Route element={<Layout />}>
+        <Route index element={<DiscoverPage />} />
+        <Route path="login" element={<LoginPage />} />
+        <Route path="register" element={<RegisterPage />} />
+        <Route path="events/:slug" element={<EventPage />} />
 
-function HealthStatus({ health }) {
-  if (health.state === 'loading') {
-    return (
-      <p className="mt-2 flex items-center gap-2 text-ink-muted">
-        <span className="size-2.5 animate-pulse rounded-full bg-warning" /> Checking /api/health…
-      </p>
-    )
-  }
-  if (health.state === 'error') {
-    return (
-      <div className="mt-2">
-        <p className="flex items-center gap-2 font-semibold text-danger">
-          <span className="size-2.5 rounded-full bg-danger" /> Can't reach the API
-        </p>
-        <p className="mt-1 text-sm text-ink-muted">
-          {health.error.message}. Is the backend running on port 8080?
-        </p>
-      </div>
-    )
-  }
-  const { status, database, time } = health.data
-  const up = status === 'UP'
-  return (
-    <div className="mt-2">
-      <p className={`flex items-center gap-2 font-semibold ${up ? 'text-success' : 'text-warning'}`}>
-        <span className={`size-2.5 rounded-full ${up ? 'bg-success' : 'bg-warning'}`} /> API {status}
-      </p>
-      <p className="mt-1 text-sm text-ink-muted">
-        Database {database} · server time {new Date(time).toLocaleTimeString()}
-      </p>
-    </div>
+        <Route path="checkout/:orderId" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+        <Route path="orders/:orderId/confirmed" element={<RequireAuth><OrderConfirmedPage /></RequireAuth>} />
+        <Route path="tickets" element={<RequireAuth><WalletPage /></RequireAuth>} />
+        <Route path="tickets/:ticketId" element={<RequireAuth><TicketPage /></RequireAuth>} />
+
+        <Route path="organizer" element={<RequireAuth roles={ORGANIZERS}><OrganizerEventsPage /></RequireAuth>} />
+        <Route path="organizer/events/new" element={<RequireAuth roles={ORGANIZERS}><NewEventPage /></RequireAuth>} />
+        <Route path="organizer/events/:eventId" element={<RequireAuth roles={ORGANIZERS}><EventEditorPage /></RequireAuth>} />
+
+        <Route path="admin/users" element={<RequireAuth roles={['ADMIN']}><AdminUsersPage /></RequireAuth>} />
+
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
   )
 }

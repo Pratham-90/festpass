@@ -417,7 +417,7 @@ Claude Code updates this section at the end of every phase.
 - [x] Phase 1: Backend foundations
 - [x] Phase 2: Booking engine
 - [x] Phase 3: Real-time layer
-- [ ] Phase 4: Frontend core
+- [x] Phase 4: Frontend core
 - [ ] Phase 5: The fun layer
 - [ ] Phase 6: Stress Arena
 - [ ] Phase 7: Hardening, documentation and demo prep
@@ -425,6 +425,17 @@ Claude Code updates this section at the end of every phase.
 ### Notes and deferred items
 - **Phase 0:** Versions chosen: Spring Boot 3.5.16, Maven 3.9.16 (via the wrapper, no global Maven needed), Vite 8, Tailwind CSS 4 (design tokens live in the `@theme` block of `frontend/src/styles/index.css`), React 18.3.1. Only the dependencies needed so far are installed; the rest of Section 2 is added in the phase that uses it.
 - **Phase 0:** The CI workflow (`.github/workflows/ci.yml`) has not run yet because the repository has no GitHub remote. Its three steps (`mvnw verify`, `npm ci && npm run build`, `docker build`) all pass locally.
+- **Phase 4:** Decisions and changes:
+  - React Router **7** (7.18): version 8 needs React 19, and the plan fixes React 18. Other versions: TanStack Query 5, Framer Motion, `@stomp/stompjs` 7.
+  - One shared STOMP connection (`useStomp`). It reconnects after login or logout so the socket belongs to the right user, and pages refetch their data after a reconnect so no update is missed.
+  - Countdowns use the server's clock (offset measured once from `/api/health`), so a phone with a wrong clock still shows the right hold time.
+  - Idempotency keys use `crypto.getRandomValues` when `crypto.randomUUID` is unavailable (plain `http://` on a phone over the LAN).
+  - Flash drops get a working waiting-room panel on the event page: join, live position, admitted over WebSocket. Phase 5 builds the full animated screen.
+  - "Organizer sees the sale": the editor shows taken / capacity per tier and live viewers and sales. The full dashboard is Phase 5.
+  - Gate staff have no gate screen yet (Phase 5); they can use the site like a student.
+  - Backend: order responses now include `eventSlug`. The `dev` seeder keeps the sample events in the future on every start; they had gone stale since October.
+  - There is no frontend unit-test framework (none is in Section 2). Phase 4 was checked in a real browser against the real backend: register → browse → pick seats → hold → pay → wallet and QR → organizer sees the sale; two windows (the second saw the hold 211 ms after the click); "seat grabbed" by another user; declined payment; release seats; flash drop admitted over WebSocket then held with the token; organizer create → tier → section preview → publish; admin role change; every page at 375 px with no horizontal scrolling.
+  - Bugs found while checking and fixed: our own hold's WebSocket update showed a false "Someone just grabbed that seat!" (now ignored for seats being held); the organizer editor didn't refresh after changes (URL id was a string, query keys used a number).
 - **Phase 3:** Decisions and changes:
   - Services publish Spring application events, and the realtime layer sends them with `@TransactionalEventListener`, so only committed changes reach browsers. Seat updates use `UPDATE ... RETURNING id`, so only seats that really changed are announced. A seat taken over by another hold is never reported as freed.
   - `StompGuard` rejects all client `SEND` frames, so browsers can't fake seat updates. Subscriptions are limited: check-ins for gate staff, organizers and admins; arena for admins; `/user/queue/*` for logged-in users. Visitors who aren't logged in can watch seats, stats and queue counters.

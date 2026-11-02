@@ -14,6 +14,7 @@ Flash-sale ticketing for college fests. Full spec and phase plan: `PLAN.md` (bui
 - Only the technologies in PLAN.md Section 2. Ask before adding any library or service.
 - One Spring Boot modular monolith. No Kafka, Redis, Kubernetes or microservices.
 - Frontend is JavaScript (not TypeScript). Colours, fonts and radii come from `@theme` tokens in `frontend/src/styles/index.css`.
+- Frontend: every call goes through `api()` (`src/api/client.js`, handles CSRF), server data through the hooks in `src/api/queries.js`, live updates through `useStomp` (`src/realtime/useStomp.js`).
 
 ## Backend conventions
 - Package per feature under `com.festpass` (`event`, `booking`, `ticket`, ...); shared code in `common`.
