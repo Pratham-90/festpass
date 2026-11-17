@@ -7,7 +7,7 @@ Course project for **UCS553 Enterprise Web Application** (TIET) by Pratham Arora
 ## Tech stack
 
 - **Backend:** Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, PostgreSQL 16, Flyway, Spring Mail
-- **Frontend:** React 18, Vite, Tailwind CSS, React Router, TanStack Query, Framer Motion, STOMP over WebSocket
+- **Frontend:** React 18, Vite, Tailwind CSS, React Router, TanStack Query, Framer Motion, STOMP over WebSocket, Recharts, html5-qrcode, canvas-confetti
 - **Infra:** Docker Compose (PostgreSQL, Mailpit, app), GitHub Actions
 
 See [PLAN.md](PLAN.md) for the full design and build plan.
@@ -105,6 +105,25 @@ The backend reads these environment variables (defaults suit the local Docker Co
 | `QR_SECRET` | a dev-only value. **Set your own (at least 16 characters) anywhere shared**, since it signs every ticket's QR code |
 | `PORT` | `8080` |
 
+## Gate scanner on a phone
+
+Phone browsers only allow the camera on HTTPS (or `localhost`), so plain `http://<laptop-ip>:8080` shows the scanner without a camera. To scan with a real phone, run FestPass over HTTPS with a self-signed certificate:
+
+1. Start the database: `docker compose up -d postgres mailpit`
+2. From the project folder, in PowerShell:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/run-https.ps1
+   ```
+
+   The first run creates `backend/dev-https.p12`, a certificate for `localhost` and the laptop's current Wi-Fi address. It then builds the React app into the server and starts it on port 8443 with the `dev,https` profiles. If the laptop's address changes, delete that file and run the script again.
+3. The script prints an address like `https://192.168.1.20:8443`. Open it on a phone on the **same Wi-Fi**. The browser warns that the certificate isn't trusted, because it was made on your laptop: choose "Advanced", then "Proceed".
+4. Log in as gate staff, open **Gate**, pick the event, tap **Start scanning** and allow the camera.
+
+A valid ticket flashes the screen green with a chime and a short buzz. A used, forged or wrong-event ticket flashes red with the reason. Without a camera, type or paste the ticket's code into the box at the bottom.
+
+Windows Firewall may ask to allow Java on private networks the first time; allow it, or the phone can't connect.
+
 ## Frontend at a glance
 
 | Page | Path | Who |
@@ -113,7 +132,10 @@ The backend reads these environment variables (defaults suit the local Docker Co
 | Event (live seat map or ticket picker, waiting room for flash drops) | `/events/:slug` | everyone; booking needs a login |
 | Checkout (hold timer) → mock payment → confirmation | `/checkout/:id`, `/pay/:id`, `/orders/:id/confirmed` | logged in |
 | Ticket wallet and ticket (QR, PDF, calendar) | `/tickets`, `/tickets/:id` | logged in |
+| Fest Passport (stamps and milestones) | `/passport` | logged in |
+| Gate: pick an event, then the full-screen scanner | `/gate`, `/gate/:eventId` | gate staff and admins |
 | Organizer: events, new event, editor (tiers, section generator with live preview, gate staff, publish) | `/organizer/...` | organizers and admins |
+| Organizer mission control (live sales chart, tier fill, seat heat map, check-ins) | `/organizer/events/:id/dashboard` | organizers and admins |
 | Users and roles | `/admin/users` | admins |
 
 Code lives in `frontend/src`: `api/` (fetch wrapper, query hooks, error messages), `realtime/useStomp.js` (the one shared WebSocket connection), `components/` and `pages/`.

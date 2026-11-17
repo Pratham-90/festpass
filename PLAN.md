@@ -418,13 +418,24 @@ Claude Code updates this section at the end of every phase.
 - [x] Phase 2: Booking engine
 - [x] Phase 3: Real-time layer
 - [x] Phase 4: Frontend core
-- [ ] Phase 5: The fun layer
+- [x] Phase 5: The fun layer
 - [ ] Phase 6: Stress Arena
 - [ ] Phase 7: Hardening, documentation and demo prep
 
 ### Notes and deferred items
 - **Phase 0:** Versions chosen: Spring Boot 3.5.16, Maven 3.9.16 (via the wrapper, no global Maven needed), Vite 8, Tailwind CSS 4 (design tokens live in the `@theme` block of `frontend/src/styles/index.css`), React 18.3.1. Only the dependencies needed so far are installed; the rest of Section 2 is added in the phase that uses it.
 - **Phase 0:** The CI workflow (`.github/workflows/ci.yml`) has not run yet because the repository has no GitHub remote. Its three steps (`mvnw verify`, `npm ci && npm run build`, `docker build`) all pass locally.
+- **Phase 5:** Decisions and changes:
+  - Ticket reveal: confetti in the tier's colour (`canvas-confetti`, which switches itself off for reduced motion) and a 3D flip card (`TicketFlipCard`) on the confirmation and ticket pages.
+  - Waiting room: big countdown, animated waiting and admitted counters, a queue-progress bar and a "You're in!" moment with confetti.
+  - Gate scanner (`/gate`, `/gate/:eventId`): `html5-qrcode` camera, full-screen green or red flash, a chime and vibration generated in the browser (no audio files), a live counter, and a manual code box when there is no camera. New endpoint `GET /api/checkin/events`.
+  - HTTPS for phones: the `https` Spring profile plus `scripts/run-https.ps1` (self-signed certificate for the laptop's LAN address, port 8443). HTTPS serving was checked on the laptop. **Scanning with a physical phone camera has not been tested**: the build environment has no camera, so the team should try it once.
+  - Mission control (`/organizer/events/:id/dashboard`, new endpoint `GET /api/organizer/events/{id}/dashboard`): tickets sold, revenue, viewers, sales-over-time chart (Recharts), a meter per tier, check-in progress and a seat heat map of what sold first. It reloads on every `stats` or `checkins` message, so it updates live.
+  - Fest Passport (`/passport`, `GET /api/me/passport`): one stamp per attended event; milestones First fest (1), High five (5) and Front row regular (row A at 3 events).
+  - The dashboard and scanner pages are loaded on demand, so their libraries don't slow the first load for students.
+  - All motion respects `prefers-reduced-motion`: Framer Motion via `MotionConfig reducedMotion="user"`, CSS animations via the global media query, confetti via its own option, and chart animation is switched off.
+  - Email on slow networks: this laptop's DNS became very slow (12 s to look up its own name), and JavaMail silently does that lookup before every email. `mail.smtp.localhost` and `mail.from` now skip it, and the default mail host is `127.0.0.1` because `localhost` resolved to IPv6 first, which Docker didn't answer. Mailpit's reverse-DNS check is off too.
+  - Checked in a browser: ticket reveal and flip, gate scan (valid, already used with time and name, forged), camera refusal message, waiting room admission, dashboard updating from 6 to 7 tickets without a reload, passport, and every new page at 375 px.
 - **Phase 4:** Decisions and changes:
   - React Router **7** (7.18): version 8 needs React 19, and the plan fixes React 18. Other versions: TanStack Query 5, Framer Motion, `@stomp/stompjs` 7.
   - One shared STOMP connection (`useStomp`). It reconnects after login or logout so the socket belongs to the right user, and pages refetch their data after a reconnect so no update is missed.

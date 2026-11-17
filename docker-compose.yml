@@ -19,6 +19,9 @@ services:
 
   mailpit:
     image: axllent/mailpit:latest
+    environment:
+      # Skip the reverse-DNS lookup Mailpit does before greeting; on a slow network it delays every email by seconds.
+      MP_SMTP_DISABLE_RDNS: "true"
     ports:
       - "1025:1025" # SMTP
       - "8025:8025" # web inbox: http://localhost:8025

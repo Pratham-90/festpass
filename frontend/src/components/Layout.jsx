@@ -6,7 +6,8 @@ import { useToast } from './Toasts.jsx'
 
 function navItems(me) {
   const items = [{ to: '/', label: 'Discover', end: true }]
-  if (me) items.push({ to: '/tickets', label: 'My tickets' })
+  if (me) items.push({ to: '/tickets', label: 'My tickets' }, { to: '/passport', label: 'Passport' })
+  if (me?.role === 'GATE_STAFF' || isAdmin(me)) items.push({ to: '/gate', label: 'Gate' })
   if (isOrganizer(me)) items.push({ to: '/organizer', label: 'Organizer' })
   if (isAdmin(me)) items.push({ to: '/admin/users', label: 'Admin' })
   return items

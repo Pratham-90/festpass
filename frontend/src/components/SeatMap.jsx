@@ -158,8 +158,9 @@ export default function SeatMap({ seats, sections = [], bounds, selected = new S
           const isSelected = selected.has(seat.id)
           const isMine = mine.has(seat.id)
           const clickable = onToggle && (seat.status === 'AVAILABLE' || isSelected)
+          // seat.note replaces the status in the label, e.g. "sold 3rd" on the dashboard heat map.
           const label = `${seat.section} row ${seat.row} seat ${seat.number}, ${
-            isSelected ? 'selected' : isMine ? 'held for you' : seat.status.toLowerCase()
+            seat.note ?? (isSelected ? 'selected' : isMine ? 'held for you' : seat.status.toLowerCase())
           }`
           let opacity = 1
           if (seat.status === 'BOOKED' && !isMine) opacity = 0.18

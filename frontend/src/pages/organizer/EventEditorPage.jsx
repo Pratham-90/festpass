@@ -78,7 +78,13 @@ function Editor({ event }) {
         {draft ? (
           <Button onClick={() => publish.mutate()} loading={publish.isPending}>Publish</Button>
         ) : (
-          <Link to={`/events/${event.slug}`} className="font-semibold text-accent">View public page →</Link>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link to={`/events/${event.slug}`} className="font-semibold text-ink-muted hover:text-ink">Public page →</Link>
+            <Link to={`/organizer/events/${event.id}/dashboard`}
+                  className="inline-flex min-h-11 items-center rounded-xl bg-accent px-4 font-semibold text-white">
+              📡 Mission control
+            </Link>
+          </div>
         )}
       </div>
 

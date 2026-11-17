@@ -7,5 +7,7 @@ public interface GateAssignmentRepository extends JpaRepository<GateAssignment, 
 
     List<GateAssignment> findByEventId(Long eventId);
 
+    List<GateAssignment> findByUserId(Long userId);
+
     boolean existsByUserIdAndEventId(Long userId, Long eventId);
 }

@@ -101,14 +101,17 @@ class TicketIntegrationTest extends BookingTestSupport {
     private JsonNode waitForEmailTo(String email) throws Exception {
         Instant deadline = Instant.now().plus(Duration.ofSeconds(15));
         String query = URLEncoder.encode("to:\"" + email + "\"", StandardCharsets.UTF_8);
+        JsonNode found = null;
         while (Instant.now().isBefore(deadline)) {
-            JsonNode found = mailpit("/api/v1/search?query=" + query);
-            if (found.get("messages_count").asInt() > 0) {
+            found = mailpit("/api/v1/search?query=" + query);
+            if (found.path("messages_count").asInt() > 0) {
                 return found.get("messages").get(0);
             }
             Thread.sleep(200);
         }
-        throw new AssertionError("No email arrived for " + email);
+        JsonNode all = mailpit("/api/v1/messages");
+        throw new AssertionError("No email arrived for " + email + ". Last search answer: " + found
+                + ". Mailbox holds " + all.path("total") + " messages.");
     }
 
     private JsonNode mailpit(String path) throws Exception {

@@ -1,0 +1,10 @@
+# HTTPS with a self-signed certificate, for testing the gate scanner on a real phone.
+# Browsers only allow camera access on localhost or HTTPS, so a phone on the Wi-Fi needs this.
+# Create the certificate and start everything with:  scripts/run-https.ps1  (see README).
+server:
+  port: ${PORT:8443}
+  ssl:
+    enabled: true
+    key-store: ${HTTPS_KEYSTORE:file:./dev-https.p12}
+    key-store-password: ${HTTPS_KEYSTORE_PASSWORD:festpass-dev}
+    key-store-type: PKCS12

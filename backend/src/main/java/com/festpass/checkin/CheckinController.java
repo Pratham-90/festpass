@@ -2,11 +2,13 @@ package com.festpass.checkin;
 
 import com.festpass.auth.AppUserPrincipal;
 import com.festpass.checkin.CheckinService.CheckinStats;
+import com.festpass.checkin.CheckinService.GateEvent;
 import com.festpass.checkin.CheckinService.ScanResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,6 +31,12 @@ public class CheckinController {
     @PostMapping("/api/checkin")
     public ScanResponse scan(@Valid @RequestBody ScanRequest request, @AuthenticationPrincipal AppUserPrincipal me) {
         return checkinService.scan(request.eventId(), request.code(), me);
+    }
+
+    /** The events this gate staff member (or admin) can scan for. */
+    @GetMapping("/api/checkin/events")
+    public List<GateEvent> events(@AuthenticationPrincipal AppUserPrincipal me) {
+        return checkinService.gateEvents(me);
     }
 
     @GetMapping("/api/events/{eventId}/checkin/stats")

@@ -72,7 +72,7 @@ function EventView({ event }) {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="flex min-w-0 flex-col gap-6">
           <SaleBanner event={event} now={now} />
-          {event.flashDrop && <WaitingRoomPanel event={event} me={me} />}
+          {event.flashDrop && <WaitingRoomPanel event={event} me={me} accent={event.accentColor} />}
           {seated ? (
             <SeatPicker event={event} tiers={tiers} me={me} canBook={canBook} admissionToken={admissionToken} />
           ) : (

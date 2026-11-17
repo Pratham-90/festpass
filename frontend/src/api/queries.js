@@ -16,6 +16,10 @@ export const keys = {
   orgSeatmap: (eventId) => ['org', 'seatmap', eventId],
   gateStaff: (eventId) => ['org', 'gate', eventId],
   users: (q) => ['admin', 'users', q],
+  dashboard: (eventId) => ['org', 'dashboard', eventId],
+  passport: ['passport'],
+  gateEvents: ['gate', 'events'],
+  checkinStats: (eventId) => ['gate', 'stats', eventId],
 }
 
 function params(object) {
@@ -57,3 +61,17 @@ export const useGateStaff = (eventId) =>
 
 export const useUsers = (q) =>
   useQuery({ queryKey: keys.users(q), queryFn: () => api(`/admin/users${params({ q })}`), placeholderData: (prev) => prev })
+
+export const useDashboard = (eventId) =>
+  useQuery({
+    queryKey: keys.dashboard(eventId),
+    queryFn: () => api(`/organizer/events/${eventId}/dashboard`),
+    placeholderData: (prev) => prev,
+  })
+
+export const usePassport = () => useQuery({ queryKey: keys.passport, queryFn: () => api('/me/passport') })
+
+export const useGateEvents = () => useQuery({ queryKey: keys.gateEvents, queryFn: () => api('/checkin/events') })
+
+export const useCheckinStats = (eventId) =>
+  useQuery({ queryKey: keys.checkinStats(eventId), queryFn: () => api(`/events/${eventId}/checkin/stats`) })

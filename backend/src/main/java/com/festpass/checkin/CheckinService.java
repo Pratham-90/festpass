@@ -4,7 +4,9 @@ import com.festpass.auth.AppUserPrincipal;
 import com.festpass.checkin.CheckinScan.Result;
 import com.festpass.common.ApiException;
 import com.festpass.event.Event;
+import com.festpass.event.EventEnums.EventStatus;
 import com.festpass.event.EventRepository;
+import com.festpass.event.GateAssignment;
 import com.festpass.event.GateAssignmentRepository;
 import com.festpass.event.TicketTierRepository;
 import com.festpass.seating.SeatRepository;
@@ -15,7 +17,10 @@ import com.festpass.user.Role;
 import com.festpass.user.User;
 import com.festpass.user.UserRepository;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
@@ -63,6 +68,10 @@ public class CheckinService {
 
     public record CheckinStats(Long eventId, long checkedIn, long total, LastScan lastScan) {}
 
+    /** An event the user may scan tickets for, with its check-in progress. */
+    public record GateEvent(Long id, String slug, String title, String venueName, Instant startsAt, Instant endsAt,
+                            long checkedIn, long total) {}
+
     @Transactional
     public ScanResponse scan(Long eventId, String code, AppUserPrincipal staff) {
         Event event = events.findById(eventId).orElseThrow(() -> ApiException.notFound("Event"));
@@ -107,6 +116,26 @@ public class CheckinService {
                 .map(s -> new LastScan(s.getResult(), s.getScannedAt())).orElse(null);
         return new CheckinStats(eventId, tickets.countByEventIdAndCheckedInAtIsNotNull(eventId),
                 tickets.countByEventId(eventId), last);
+    }
+
+    /**
+     * The events to show on the gate screen: a gate staff member's assigned events, or every published
+     * event for an admin. Events that ended more than a day ago are left out.
+     */
+    @Transactional(readOnly = true)
+    public List<GateEvent> gateEvents(AppUserPrincipal staff) {
+        List<Event> candidates = staff.isAdmin()
+                ? events.findBySandboxFalseOrderByStartsAtDesc()
+                : events.findAllById(gateAssignments.findByUserId(staff.id()).stream()
+                        .map(GateAssignment::getEventId).toList());
+        Instant cutoff = Instant.now(clock).minus(Duration.ofDays(1));
+        return candidates.stream()
+                .filter(e -> e.getStatus() == EventStatus.PUBLISHED && !e.isSandbox() && e.getEndsAt().isAfter(cutoff))
+                .sorted(Comparator.comparing(Event::getStartsAt))
+                .map(e -> new GateEvent(e.getId(), e.getSlug(), e.getTitle(), e.getVenueName(), e.getStartsAt(),
+                        e.getEndsAt(), tickets.countByEventIdAndCheckedInAtIsNotNull(e.getId()),
+                        tickets.countByEventId(e.getId())))
+                .toList();
     }
 
     /** Admins can scan anywhere; gate staff only at events they are assigned to. */

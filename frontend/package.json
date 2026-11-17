@@ -11,10 +11,13 @@
   "dependencies": {
     "@stomp/stompjs": "7.5.0",
     "@tanstack/react-query": "5.105.2",
+    "canvas-confetti": "1.9.4",
     "framer-motion": "14.9.0",
+    "html5-qrcode": "2.3.8",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-router": "7.18.5"
+    "react-router": "7.18.5",
+    "recharts": "3.10.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

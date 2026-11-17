@@ -28,6 +28,8 @@ public class TestcontainersConfig {
     GenericContainer<?> mailpit() {
         return new GenericContainer<>("axllent/mailpit:v1.31")
                 .withExposedPorts(MAILPIT_SMTP, MAILPIT_API)
+                // No reverse-DNS lookup before the SMTP greeting: with slow DNS it takes longer than the mail timeout.
+                .withEnv("MP_SMTP_DISABLE_RDNS", "true")
                 .waitingFor(Wait.forHttp("/livez").forPort(MAILPIT_API));
     }
 
@@ -35,10 +37,18 @@ public class TestcontainersConfig {
     @Bean
     DynamicPropertyRegistrar mailpitProperties(GenericContainer<?> mailpit) {
         return registry -> {
-            registry.add("spring.mail.host", mailpit::getHost);
+            registry.add("spring.mail.host", () -> ipv4(mailpit.getHost()));
             registry.add("spring.mail.port", () -> mailpit.getMappedPort(MAILPIT_SMTP));
             registry.add("test.mailpit.api",
-                    () -> "http://" + mailpit.getHost() + ":" + mailpit.getMappedPort(MAILPIT_API));
+                    () -> "http://" + ipv4(mailpit.getHost()) + ":" + mailpit.getMappedPort(MAILPIT_API));
         };
+    }
+
+    /**
+     * "localhost" can resolve to IPv6 (::1) first, and Docker Desktop's port forwarding on ::1 may accept
+     * a connection and then never answer. Use the IPv4 loopback address for container ports.
+     */
+    private static String ipv4(String host) {
+        return "localhost".equals(host) ? "127.0.0.1" : host;
     }
 }

@@ -291,7 +291,23 @@ Assigns a `GATE_STAFF` user to the event. Assigning the same person twice does n
 
 ### `GET /api/organizer/events/{id}/dashboard`
 
-Phase 5.
+Numbers for the organizer's mission-control screen. The page reloads it whenever a message arrives on the event's `stats` or `checkins` topic.
+
+```json
+{
+  "eventId": 1, "slug": "rhythm-night-saturday-showcase", "title": "Rhythm Night", "status": "PUBLISHED",
+  "seatingMode": "SEATED", "saleOpensAt": "...", "startsAt": "...",
+  "viewers": 12, "capacity": 202, "ticketsSold": 7, "ticketsHeld": 2, "revenuePaise": 414300,
+  "checkedIn": 3, "soldLastMinute": 1, "bucket": "MINUTES",
+  "tiers": [ { "tierId": 1, "name": "VIP", "colorHex": "#ff3d81", "pricePaise": 79900,
+               "capacity": 32, "sold": 3, "held": 0, "revenuePaise": 239700 } ],
+  "salesOverTime": [ { "at": "2026-11-16T15:20:00Z", "tickets": 1, "cumulative": 7 } ],
+  "seatHeat": [ { "seatId": 101, "order": 0.0 } ]
+}
+```
+
+- `salesOverTime` has one point per `bucket` (`MINUTES` for a sale up to 3 hours old, `HOURS` up to 5 days, then `DAYS`), from just before the first sale to now, including empty buckets.
+- `seatHeat` lists sold seats in the order they sold: `order` runs from 0 (first) to 1 (latest). It is empty for general admission.
 
 ---
 
@@ -446,6 +462,26 @@ The ticket as a PDF download (A6, with the QR code).
 
 An iCalendar file for the event.
 
+### `GET /api/me/passport`
+
+The Fest Passport: one stamp per event you were checked in to (the earliest check-in), and three milestones.
+
+```json
+{
+  "eventsAttended": 1,
+  "stamps": [ { "eventId": 1, "eventSlug": "rhythm-night-saturday-showcase", "eventTitle": "Rhythm Night",
+                "category": "DANCE", "venueName": "Main Auditorium, TIET", "startsAt": "...",
+                "checkedInAt": "...", "tierName": "VIP", "color": "#ff3d81", "frontRow": true } ],
+  "milestones": [
+    { "code": "FIRST_EVENT", "title": "First fest", "description": "Get checked in at your first event.",
+      "progress": 1, "target": 1, "earned": true },
+    { "code": "FIVE_EVENTS", "title": "High five", "description": "Attend five events.", "progress": 1, "target": 5, "earned": false },
+    { "code": "FRONT_ROW_REGULAR", "title": "Front row regular", "description": "Sit in row A at 3 events.",
+      "progress": 1, "target": 3, "earned": false }
+  ]
+}
+```
+
 ---
 
 ## Check-in
@@ -474,6 +510,15 @@ For `GATE_STAFF` assigned to the event, or an `ADMIN`. Always `200`; the result 
 ```
 
 Check-in is a single conditional update, so a ticket is let in only once even if two gates scan it at the same moment. Every scan is logged.
+
+### `GET /api/checkin/events`
+
+The events to show on the gate screen: a gate staff member's assigned events, or every published event for an admin. Events that ended more than a day ago are left out.
+
+```json
+[ { "id": 1, "slug": "rhythm-night-saturday-showcase", "title": "Rhythm Night", "venueName": "Main Auditorium, TIET",
+    "startsAt": "...", "endsAt": "...", "checkedIn": 3, "total": 7 } ]
+```
 
 ### `GET /api/events/{id}/checkin/stats`
 
@@ -586,6 +631,4 @@ Connect with STOMP over a plain WebSocket at **`/ws`**, for example with `@stomp
 
 ## Coming in later phases
 
-- `GET /api/me/passport`: Phase 5
-- `GET /api/organizer/events/{id}/dashboard`: Phase 5
 - Stress Arena (`/api/admin/arena/**`, `/topic/arena/{runId}`): Phase 6
