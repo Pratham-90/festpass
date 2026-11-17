@@ -41,6 +41,15 @@ public class SeatMapService {
         return build(eventService.requireManageable(eventId, actor));
     }
 
+    /** The Stress Arena's sandbox copy of an event (admins only; see ArenaController). */
+    @Transactional(readOnly = true)
+    public SeatMapView forSandbox(Event sandboxEvent) {
+        if (!sandboxEvent.isSandbox()) {
+            throw new IllegalArgumentException("Not a sandbox event");
+        }
+        return build(sandboxEvent);
+    }
+
     private SeatMapView build(Event event) {
         Instant now = Instant.now(clock);
         List<TierView> tiers = eventService.tierViews(event);

@@ -419,10 +419,19 @@ Claude Code updates this section at the end of every phase.
 - [x] Phase 3: Real-time layer
 - [x] Phase 4: Frontend core
 - [x] Phase 5: The fun layer
-- [ ] Phase 6: Stress Arena
+- [x] Phase 6: Stress Arena
 - [ ] Phase 7: Hardening, documentation and demo prep
 
 ### Notes and deferred items
+- **Phase 6:** Decisions and changes:
+  - Bots are real users (`users.is_bot`, migration V4) that log in and call the real HTTP API on `127.0.0.1` (Tomcat, Spring Security with the CSRF cookie, rate limiter, services, PostgreSQL), one virtual thread and cookie jar each, all released by one `CountDownLatch`. Bot passwords use BCrypt cost 4 so 2,000 bots are ready in seconds.
+  - The sandbox is a copy of the chosen event (`is_sandbox`, title `[Arena #n] ...`) with its sale open now. For a flash-drop copy the runner admits every bot, since the arena tests booking, not the queue. Sandbox events and bots are hidden from public lists, search, the gate, the organizer's event list and the admin user list. Reset deletes sandboxes, bots and runs.
+  - Bot behaviour: seated bots want 1 seat (70%) or 2, and try up to 5 holds; `RUSH_SAME_SEATS` aims at the best seats first and widens its choice on each retry. `GA_RUSH` bots all want one ticket from the event's first tier (the 100-ticket Fan Pit of the sample open-air event) and retry `SOLD_OUT` a moment later, like fans refreshing. About 5% abandon their checkout and 5% get a declined payment and release the hold.
+  - "Sells exactly 100": the 1,000-bot GA run allocates exactly 100 Fan Pit tickets (`reserved = 100`). Most are paid; the few held by bots that abandoned checkout are counted separately as `ticketsHeld` (they'd go back on sale when the holds expire). Paid + held is always exactly 100, never 101. The test asserts this.
+  - Measured on this laptop: 500 bots vs 50 seats, race 3.9 to 4.8 s, integrity all zero; 1,000 bots vs 100 GA tickets, about 10 s, exactly 100 allocated.
+  - `server.tomcat.accept-count` is 1,000 and bots retry a refused *connection* (never a request that reached the server), because Windows refuses some of 1,000 simultaneous new connections when its accept queue is full. Unexpected failures are counted by kind in the report's `errorsByCode`.
+  - The sample data now lives in `SampleData`, shared by the `dev` seeder and Phase 7's `demo` seeder, and adds a fourth event, **Studio Session: Unplugged** (50 seats), as the arena's 500-bots-vs-50-seats target. The dev seeder creates any missing sample event, so existing databases get it too, and assigns the gate account to all sample events.
+  - Checked in a browser: 500 bots against Studio Session from the Arena page (live sandbox seat map, counters, "0 oversold" report), sandbox and bots absent from public lists, reset.
 - **Phase 0:** Versions chosen: Spring Boot 3.5.16, Maven 3.9.16 (via the wrapper, no global Maven needed), Vite 8, Tailwind CSS 4 (design tokens live in the `@theme` block of `frontend/src/styles/index.css`), React 18.3.1. Only the dependencies needed so far are installed; the rest of Section 2 is added in the phase that uses it.
 - **Phase 0:** The CI workflow (`.github/workflows/ci.yml`) has not run yet because the repository has no GitHub remote. Its three steps (`mvnw verify`, `npm ci && npm run build`, `docker build`) all pass locally.
 - **Phase 5:** Decisions and changes:

@@ -8,6 +8,9 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/festpass}
     username: ${DB_USERNAME:festpass}
     password: ${DB_PASSWORD:festpass}
+    hikari:
+      # A few more connections than the default 10, for flash-sale bursts and the Stress Arena.
+      maximum-pool-size: 20
   jpa:
     open-in-view: false
     hibernate:
@@ -34,6 +37,10 @@ spring:
 
 server:
   port: ${PORT:8080}
+  tomcat:
+    # How many new connections may wait to be accepted. The default (100) turns people away when
+    # a flash drop opens and a thousand phones connect in the same second.
+    accept-count: 1000
   servlet:
     session:
       cookie:

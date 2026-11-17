@@ -142,7 +142,7 @@ public class WaitingRoom {
             if (now.isBefore(event.get().getSaleOpensAt())) {
                 continue;
             }
-            List<Admitted> admitted = admitBatch(queues.get(eventId), eventId, now);
+            List<Admitted> admitted = admitBatch(queues.get(eventId), eventId, now, batchSize);
             admitted.forEach(publisher::publishEvent);
             if (!admitted.isEmpty()) {
                 publisher.publishEvent(new QueueChanged(eventId));
@@ -152,14 +152,29 @@ public class WaitingRoom {
         return total;
     }
 
-    private List<Admitted> admitBatch(EventQueue queue, Long eventId, Instant now) {
+    /**
+     * Lets everyone waiting for one event in straight away. Used by the Stress Arena, whose bots
+     * would otherwise wait for the 5-second batches like real fans.
+     *
+     * @return how many people were admitted
+     */
+    public int admitEveryone(Long eventId) {
+        List<Admitted> admitted = admitBatch(queues.get(eventId), eventId, Instant.now(clock), Integer.MAX_VALUE);
+        admitted.forEach(publisher::publishEvent);
+        if (!admitted.isEmpty()) {
+            publisher.publishEvent(new QueueChanged(eventId));
+        }
+        return admitted.size();
+    }
+
+    private List<Admitted> admitBatch(EventQueue queue, Long eventId, Instant now, int limit) {
         List<Admitted> admitted = new ArrayList<>();
         if (queue == null) {
             return admitted;
         }
         Instant expiresAt = now.plus(admissionWindow);
         synchronized (queue) {
-            while (admitted.size() < batchSize && !queue.waitingByNumber.isEmpty()) {
+            while (admitted.size() < limit && !queue.waitingByNumber.isEmpty()) {
                 var next = queue.waitingByNumber.pollFirstEntry();
                 Long userId = next.getValue();
                 queue.numberByUser.remove(userId);

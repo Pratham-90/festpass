@@ -62,11 +62,12 @@ The `dev` profile creates these accounts. They all use the password `festpass123
 | `gate@festpass.local` | Gate staff |
 | `admin@festpass.local` | Admin |
 
-It also creates three published events. On every start it moves them back into the future if their dates have passed:
+It also creates four published events (each one only if it's missing). On every start it moves them back into the future if their dates have passed:
 
 - **Rhythm Night: Saturday Showcase**: a seated auditorium show with 202 seats in 3 tiers.
-- **Open Air: Sunset Sessions**: general admission with 2 tiers.
+- **Open Air: Sunset Sessions**: general admission: Fan Pit (100 tickets) and General (500).
 - **Midnight Drop: DJ Night**: a seated flash drop. Its sale opens 3 minutes after every backend start.
+- **Studio Session: Unplugged**: a small seated room with 50 seats, the Stress Arena's favourite target.
 
 To start again from an empty database:
 
@@ -101,7 +102,7 @@ The backend reads these environment variables (defaults suit the local Docker Co
 |---|---|
 | `DB_URL` | `jdbc:postgresql://localhost:5432/festpass` |
 | `DB_USERNAME` / `DB_PASSWORD` | `festpass` / `festpass` |
-| `MAIL_HOST` / `MAIL_PORT` | `localhost` / `1025` |
+| `MAIL_HOST` / `MAIL_PORT` | `127.0.0.1` / `1025` |
 | `QR_SECRET` | a dev-only value. **Set your own (at least 16 characters) anywhere shared**, since it signs every ticket's QR code |
 | `PORT` | `8080` |
 
@@ -124,6 +125,12 @@ A valid ticket flashes the screen green with a chime and a short buzz. A used, f
 
 Windows Firewall may ask to allow Java on private networks the first time; allow it, or the phone can't connect.
 
+## Stress Arena
+
+Log in as `admin@festpass.local` and open **Arena**. Pick an event, a number of bots (up to 2,000) and a strategy, then press **Start**. FestPass copies the event into a hidden sandbox, creates bot users, logs them in and releases them all at the same moment against the real HTTP API. You watch the sandbox seat map fill up live, then get a report: tickets sold and held, conflicts, latency (p50 / p95) and five integrity checks that must all be zero (shown as the **0 oversold** badge).
+
+Good runs to show: 500 bots with `RUSH_SAME_SEATS` against **Studio Session: Unplugged** (50 seats), and 1,000 bots with `GA_RUSH` against **Open Air: Sunset Sessions** (the 100-ticket Fan Pit). **Reset arena** deletes every sandbox event, bot and run. Real events are never changed.
+
 ## Frontend at a glance
 
 | Page | Path | Who |
@@ -137,6 +144,7 @@ Windows Firewall may ask to allow Java on private networks the first time; allow
 | Organizer: events, new event, editor (tiers, section generator with live preview, gate staff, publish) | `/organizer/...` | organizers and admins |
 | Organizer mission control (live sales chart, tier fill, seat heat map, check-ins) | `/organizer/events/:id/dashboard` | organizers and admins |
 | Users and roles | `/admin/users` | admins |
+| Stress Arena (bots against a sandbox copy, live seat map, integrity report) | `/admin/arena` | admins |
 
 Code lives in `frontend/src`: `api/` (fetch wrapper, query hooks, error messages), `realtime/useStomp.js` (the one shared WebSocket connection), `components/` and `pages/`.
 

@@ -36,13 +36,13 @@ class DevDataSeederTest {
     @Autowired DevDataSeeder seeder;
 
     @Test
-    void seedsOneUserPerRoleAndThreePublishedEvents() {
+    void seedsOneUserPerRoleAndFourPublishedEvents() {
         for (Role role : Role.values()) {
             assertThat(users.findAll()).anyMatch(u -> u.getRole() == role);
         }
 
         List<Event> all = events.findAll();
-        assertThat(all).hasSize(3).allMatch(e -> e.getStatus() == EventStatus.PUBLISHED);
+        assertThat(all).hasSize(4).allMatch(e -> e.getStatus() == EventStatus.PUBLISHED);
 
         Event show = events.findBySlug("rhythm-night-saturday-showcase").orElseThrow();
         assertThat(show.getSeatingMode()).isEqualTo(SeatingMode.SEATED);
@@ -54,10 +54,13 @@ class DevDataSeederTest {
         assertThat(tiers.countByEventId(openAir.getId())).isEqualTo(2);
         assertThat(seats.countByEventId(openAir.getId())).isZero();
 
-        Event drop = events.findBySlug(DevDataSeeder.FLASH_DROP_SLUG).orElseThrow();
+        Event drop = events.findBySlug(SampleData.FLASH_DROP_SLUG).orElseThrow();
         assertThat(drop.isFlashDrop()).isTrue();
         assertThat(drop.getSaleOpensAt())
                 .isCloseTo(Instant.now().plus(DevDataSeeder.FLASH_DROP_DELAY), within(30, ChronoUnit.SECONDS));
+
+        Event studio = events.findBySlug(SampleData.STUDIO_SLUG).orElseThrow();
+        assertThat(seats.countByEventId(studio.getId())).isEqualTo(50);
     }
 
     @Test
@@ -66,6 +69,6 @@ class DevDataSeederTest {
         ApplicationArguments args = new DefaultApplicationArguments();
         seeder.run(args);
         assertThat(users.count()).isEqualTo(usersBefore);
-        assertThat(events.count()).isEqualTo(3);
+        assertThat(events.count()).isEqualTo(4);
     }
 }

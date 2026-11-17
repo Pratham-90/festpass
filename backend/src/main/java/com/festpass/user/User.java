@@ -31,6 +31,10 @@ public class User {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    /** Stress Arena bot account (hidden from admins, deleted by "Reset arena"). */
+    @Column(name = "is_bot")
+    private boolean bot;
+
     protected User() {}
 
     public User(String name, String email, String passwordHash, Role role, Instant createdAt) {
@@ -67,5 +71,9 @@ public class User {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isBot() {
+        return bot;
     }
 }

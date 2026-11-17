@@ -47,7 +47,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserView> list(String query) {
         List<User> found = (query == null || query.isBlank())
-                ? users.findAllByOrderByCreatedAtDesc()
+                ? users.findByBotFalseOrderByCreatedAtDesc()
                 : users.search(query.trim());
         return found.stream().map(UserView::of).toList();
     }

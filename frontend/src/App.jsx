@@ -22,6 +22,7 @@ import { PageLoader } from './components/ui.jsx'
 // Pages with heavy libraries (charts, the QR scanner) are only downloaded when someone opens them.
 const DashboardPage = lazy(() => import('./pages/organizer/DashboardPage.jsx'))
 const ScannerPage = lazy(() => import('./pages/gate/ScannerPage.jsx'))
+const ArenaPage = lazy(() => import('./pages/admin/ArenaPage.jsx'))
 
 const ORGANIZERS = ['ORGANIZER', 'ADMIN']
 const GATE = ['GATE_STAFF', 'ADMIN']
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="organizer/events/:eventId/dashboard" element={<RequireAuth roles={ORGANIZERS}><DashboardPage /></RequireAuth>} />
 
         <Route path="admin/users" element={<RequireAuth roles={['ADMIN']}><AdminUsersPage /></RequireAuth>} />
+        <Route path="admin/arena" element={<RequireAuth roles={['ADMIN']}><ArenaPage /></RequireAuth>} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Route>

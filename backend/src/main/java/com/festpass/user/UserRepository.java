@@ -13,10 +13,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("""
             select u from User u
-            where lower(u.name) like lower(concat('%', :q, '%')) or u.email like lower(concat('%', :q, '%'))
+            where u.bot = false
+              and (lower(u.name) like lower(concat('%', :q, '%')) or u.email like lower(concat('%', :q, '%')))
             order by u.createdAt desc
             """)
     List<User> search(String q);
 
-    List<User> findAllByOrderByCreatedAtDesc();
+    List<User> findByBotFalseOrderByCreatedAtDesc();
 }

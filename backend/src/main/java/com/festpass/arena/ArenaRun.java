@@ -62,4 +62,10 @@ public class ArenaRun {
     public Instant getStartedAt() { return startedAt; }
     public Instant getFinishedAt() { return finishedAt; }
     public String getResultJson() { return resultJson; }
+
+    public void setSandboxEventId(Long sandboxEventId) { this.sandboxEventId = sandboxEventId; }
+    public void setStatus(Status status) { this.status = status; }
+    public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
+    public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }
+    public void setResultJson(String resultJson) { this.resultJson = resultJson; }
 }

@@ -565,6 +565,64 @@ The token is also pushed to `/user/queue/admission`, so polling is only a fallba
 
 ---
 
+## Stress Arena (admins)
+
+Admins can fire hundreds of bot users at a **sandbox copy** of an event to prove the booking guarantees under load. The bots are real users that log in and call the same HTTP API as a browser (hold, order, pay), so nothing is simulated inside the server. Sandbox events and bot users are hidden from every public list, search, gate screen and the admin user list. Real events are never touched.
+
+### `POST /api/admin/arena/runs`
+
+```json
+{ "sourceEventId": 4, "bots": 500, "strategy": "RUSH_SAME_SEATS" }
+```
+
+- `bots`: 1 to 2000.
+- `strategy`: `RUSH_SAME_SEATS` (every bot goes for the same best seats first, then widens its search on each retry), `RANDOM_SEATS` (each bot picks random seats anywhere) or `GA_RUSH` (general-admission events only: every bot wants one ticket in the event's first tier, the 100-ticket Fan Pit for the sample open-air event). Seated bots want 1 seat (70%) or 2.
+
+Response `202`: the run (`status` `PREPARING`). It continues in the background: copy the event (sale open now; a flash drop admits every bot), create the bots, log them in, then release them all at once with a start barrier. Each bot tries up to 5 holds; about 5% abandon their hold and 5% get a declined payment.
+
+Errors: `400 VALIDATION_FAILED` for a strategy that doesn't fit the event's seating mode, `404` for an unknown or unpublished event, `409 INVALID_STATE` while another run is in progress (one at a time).
+
+### `GET /api/admin/arena/runs` and `GET /api/admin/arena/runs/{id}`
+
+The 10 most recent runs, or one run:
+
+```json
+{ "id": 7, "status": "FINISHED", "strategy": "RUSH_SAME_SEATS", "bots": 500, "sandboxEventId": 31,
+  "startedAt": "...", "finishedAt": "...", "result": { ...report... } }
+```
+
+`status` is `PREPARING`, `RUNNING`, `FINISHED` or `FAILED`. `result` is the report below once finished, or `{ "error": "..." }` once failed.
+
+The report:
+
+```json
+{ "sourceEventId": 4, "sourceEventTitle": "Studio Session: Unplugged", "sandboxEventId": 31,
+  "strategy": "RUSH_SAME_SEATS", "bots": 500, "botsLoggedIn": 500, "raceMs": 3900,
+  "capacity": 50, "ticketsSold": 45, "ticketsHeld": 5,
+  "holdAttempts": 1720, "holdsWon": 53, "conflicts": 1667, "rateLimited": 0, "notAdmitted": 0,
+  "ordersPaid": 45, "ticketsBought": 45, "paymentsFailed": 3, "abandoned": 3, "holdsExpiredAtPayment": 0,
+  "errors": 0, "errorsByCode": {}, "p50Ms": 180, "p95Ms": 610,
+  "integrity": { "seatsWithSeveralTickets": 0, "tiersReservedOverCapacity": 0,
+                 "tiersWithMoreTicketsThanCapacity": 0, "paidOrdersWithoutTickets": 0,
+                 "bookedSeatsWithoutTicket": 0 },
+  "allZero": true }
+```
+
+- `ticketsSold` are paid tickets; `ticketsHeld` are seats or GA tickets still inside an unpaid hold (bots that abandoned). Together they never exceed `capacity`.
+- `conflicts` are `409` answers (seat taken, sold out): the expected outcome of a race, not errors. `errors` counts anything unexpected (5xx, timeouts, refused connections), broken down in `errorsByCode`.
+- `p50Ms` / `p95Ms` are hold-request latencies.
+- `integrity` re-checks the sandbox event in SQL after the race. Every number must be 0.
+
+### `GET /api/admin/arena/runs/{id}/seatmap`
+
+The sandbox event's seat map (same shape as `GET /api/events/{id}/seatmap`), since the public endpoint hides sandbox events. Live changes arrive on `/topic/events/{sandboxEventId}/seats` as usual.
+
+### `POST /api/admin/arena/reset`
+
+Deletes every sandbox event (with its holds, orders and tickets), every bot user and every run. Response `200`: `{ "sandboxEventsDeleted": 3, "botsDeleted": 1500 }`. `409 INVALID_STATE` while a run is in progress.
+
+---
+
 ## Real-time (WebSocket / STOMP)
 
 Connect with STOMP over a plain WebSocket at **`/ws`**, for example with `@stomp/stompjs` and `brokerURL: ws(s)://<host>/ws`. In development the Vite server proxies `/ws` to the backend.
@@ -580,7 +638,7 @@ Connect with STOMP over a plain WebSocket at **`/ws`**, for example with `@stomp
 | `/topic/events/{id}/stats` | anyone | Viewers, remaining tickets, sold in the last minute |
 | `/topic/events/{id}/queue` | anyone | Waiting-room counters |
 | `/topic/events/{id}/checkins` | `GATE_STAFF`, `ORGANIZER`, `ADMIN` | Check-in progress |
-| `/topic/arena/{runId}` | `ADMIN` | Stress Arena progress (Phase 6) |
+| `/topic/arena/{runId}` | `ADMIN` | Stress Arena progress |
 | `/user/queue/holds` | logged-in users | Your holds ending |
 | `/user/queue/admission` | logged-in users | Your admission token |
 
@@ -613,6 +671,20 @@ Connect with STOMP over a plain WebSocket at **`/ws`**, for example with `@stomp
   "lastScan": { "result": "VALID", "tierName": "VIP", "seatLabel": "Front · Row A · Seat 1", "at": "..." } }
 ```
 
+### `/topic/arena/{runId}`
+
+Every 250 ms while a run is going, and once more when it ends:
+
+```json
+{ "runId": 7, "status": "RUNNING", "phase": "Fight!", "sandboxEventId": 31, "bots": 500,
+  "botsLoggedIn": 500, "botsFinished": 212, "elapsedMs": 1750,
+  "holdAttempts": 830, "holdsWon": 41, "conflicts": 789, "rateLimited": 0, "notAdmitted": 0,
+  "ordersPaid": 30, "ticketsBought": 30, "paymentsFailed": 1, "abandoned": 2, "errors": 0,
+  "p50Ms": 170, "p95Ms": 590, "report": null }
+```
+
+`phase` is a label for the screen ("Copying the event", "Creating bots", "Logging bots in", "Fight!", "Checking the results"). The last message has `status` `FINISHED` (with `report`) or `FAILED`.
+
 ### `/user/queue/holds`
 
 ```json
@@ -626,9 +698,3 @@ Connect with STOMP over a plain WebSocket at **`/ws`**, for example with `@stomp
 ```json
 { "eventId": 3, "admissionToken": "17.3.1792540800.Xy...", "expiresAt": "2026-10-21T18:40:00Z" }
 ```
-
----
-
-## Coming in later phases
-
-- Stress Arena (`/api/admin/arena/**`, `/topic/arena/{runId}`): Phase 6

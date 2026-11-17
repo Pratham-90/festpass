@@ -9,7 +9,7 @@ function navItems(me) {
   if (me) items.push({ to: '/tickets', label: 'My tickets' }, { to: '/passport', label: 'Passport' })
   if (me?.role === 'GATE_STAFF' || isAdmin(me)) items.push({ to: '/gate', label: 'Gate' })
   if (isOrganizer(me)) items.push({ to: '/organizer', label: 'Organizer' })
-  if (isAdmin(me)) items.push({ to: '/admin/users', label: 'Admin' })
+  if (isAdmin(me)) items.push({ to: '/admin/users', label: 'Users' }, { to: '/admin/arena', label: 'Arena' })
   return items
 }
 
