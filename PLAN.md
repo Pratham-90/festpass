@@ -420,9 +420,17 @@ Claude Code updates this section at the end of every phase.
 - [x] Phase 4: Frontend core
 - [x] Phase 5: The fun layer
 - [x] Phase 6: Stress Arena
-- [ ] Phase 7: Hardening, documentation and demo prep
+- [x] Phase 7: Hardening, documentation and demo prep
 
 ### Notes and deferred items
+- **Phase 7:** Decisions and changes:
+  - Coverage (JaCoCo, `backend/target/site/jacoco/index.html` after `./mvnw verify`): line coverage booking 97%, check-in 93.5%, queue 89.7%, payment 86.9%, whole backend 91.4%. All four rule packages were already above the 80% target, so no tests were added just for coverage. A new `SecurityChecklistIntegrationTest` covers hashed passwords and error responses without internals.
+  - **Playwright smoke test: skipped** (optional in the plan). The main journey was checked by hand in a real browser in Phases 4 to 6, and the booking rules are covered by the integration tests.
+  - JMeter: `load-tests/festpass-holds.jmx` (sign up, then hold and release 1 GA ticket in a loop, under the per-user rate limit) with `load-tests/README.md` for the HTML report. **It has not been run here**: JMeter isn't installed on this machine and isn't part of CI. The file is checked to be well-formed XML; run it once before quoting numbers.
+  - `demo` profile (`DemoDataSeeder`): wipes every table except Flyway's history, recreates the sample data, and opens the flash drop 2 minutes after startup. `docker compose up --build` now runs the app with it (`APP_PROFILE=dev` keeps data instead), and passes `QR_SECRET` from the host.
+  - Docs: `docs/architecture.md` (component and booking sequence diagrams in Mermaid, each guarantee with how it is enforced and which test proves it, Stress Arena, security checklist), `docs/demo-script.md` (10-minute demo with timings and a troubleshooting table), `load-tests/README.md`.
+  - Security checklist: see the table at the end of `docs/architecture.md`. Everything on the list was already in place; Phase 7 added the tests and the write-up.
+  - Verification: the full backend suite passed locally with JaCoCo before the last two test classes were added, and CI (GitHub Actions: backend tests, frontend build, Docker image build) runs everything on every push. **`docker compose up --build` with the demo profile was not completed on this laptop**: Docker Desktop's engine stopped responding while the image built alongside the 1,000-bot test. The same image builds in CI and the demo seeder is covered by `DemoDataSeederTest`; run `docker compose up --build` once before presenting.
 - **Phase 6:** Decisions and changes:
   - Bots are real users (`users.is_bot`, migration V4) that log in and call the real HTTP API on `127.0.0.1` (Tomcat, Spring Security with the CSRF cookie, rate limiter, services, PostgreSQL), one virtual thread and cookie jar each, all released by one `CountDownLatch`. Bot passwords use BCrypt cost 4 so 2,000 bots are ready in seconds.
   - The sandbox is a copy of the chosen event (`is_sandbox`, title `[Arena #n] ...`) with its sale open now. For a flash-drop copy the runner admits every bot, since the arena tests booking, not the queue. Sandbox events and bots are hidden from public lists, search, the gate, the organizer's event list and the admin user list. Reset deletes sandboxes, bots and runs.

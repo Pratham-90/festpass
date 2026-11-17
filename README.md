@@ -53,7 +53,7 @@ Emails sent by the app are caught by Mailpit at http://localhost:8025.
 
 ### Dev accounts and sample data
 
-The `dev` profile creates these accounts. They all use the password `festpass123`. They're for local development only.
+The `dev` and `demo` profiles create these accounts. They all use the password `festpass123`. They're for local development and demos only.
 
 | Email | Role |
 |---|---|
@@ -75,7 +75,7 @@ To start again from an empty database:
 docker compose down -v
 ```
 
-## Run everything in Docker
+## Run everything in Docker (demo mode)
 
 Builds the React app, packs it into the Spring Boot JAR and starts it with PostgreSQL and Mailpit:
 
@@ -83,7 +83,11 @@ Builds the React app, packs it into the Spring Boot JAR and starts it with Postg
 docker compose up --build
 ```
 
-Open http://localhost:8080 (the UI and the API are served from the same JAR).
+Open http://localhost:8080 (the UI and the API are served from the same JAR) and log in with the sample accounts above.
+
+The app container runs the **`demo` profile**: every start **wipes the database** and recreates the sample accounts and events, and the **Midnight Drop** flash drop opens **2 minutes after startup**. `docker compose restart app` resets everything for the next demo. To keep your data between restarts instead, run it with the `dev` profile: `APP_PROFILE=dev docker compose up --build`. Set `QR_SECRET` in the environment for anything shared.
+
+The 10-minute presentation is in [docs/demo-script.md](docs/demo-script.md).
 
 ## Tests
 
@@ -92,7 +96,11 @@ cd backend
 ./mvnw verify
 ```
 
-The integration tests start a real PostgreSQL 16 with Testcontainers, so Docker must be running.
+The integration tests start a real PostgreSQL 16 and Mailpit with Testcontainers, so Docker must be running.
+
+`verify` also writes a JaCoCo coverage report to `backend/target/site/jacoco/index.html`. Line coverage at the end of Phase 7: booking 97%, check-in 93%, queue 90%, payment 87%, whole backend 91%.
+
+A JMeter load test for the hold endpoint, with instructions for an HTML report, is in [load-tests/](load-tests/README.md).
 
 ## Configuration
 
@@ -153,6 +161,8 @@ Code lives in `frontend/src`: `api/` (fetch wrapper, query hooks, error messages
 ```
 backend/     Spring Boot app (package per feature under com.festpass)
 frontend/    React + Vite app
-docs/        API reference (docs/api.md), architecture and demo script
-load-tests/  JMeter plan (Phase 7)
+docs/        API reference (api.md), architecture with diagrams, guarantees and security checklist
+             (architecture.md), and the demo script (demo-script.md)
+load-tests/  JMeter plan for the hold endpoint
+scripts/     run-https.ps1 (HTTPS for testing the gate scanner on a phone)
 ```

@@ -1,5 +1,7 @@
 # Local development:   docker compose up -d postgres mailpit   (then run the backend and frontend yourself)
 # Full app in Docker:  docker compose up --build                (UI + API on http://localhost:8080)
+#   The app runs the demo profile: EVERY START WIPES THE DATABASE and recreates the sample data,
+#   with the flash drop opening 2 minutes after startup. Set APP_PROFILE=dev to keep your data instead.
 services:
   postgres:
     image: postgres:16-alpine
@@ -34,12 +36,14 @@ services:
       mailpit:
         condition: service_started
     environment:
-      SPRING_PROFILES_ACTIVE: dev # sample data; replaced by the demo profile in Phase 7
+      SPRING_PROFILES_ACTIVE: ${APP_PROFILE:-demo}
       DB_URL: jdbc:postgresql://postgres:5432/festpass
       DB_USERNAME: festpass
       DB_PASSWORD: festpass
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
+      # Signs every ticket's QR code. Set your own (16+ characters) anywhere shared: QR_SECRET=... docker compose up
+      QR_SECRET: ${QR_SECRET:-demo-only-qr-secret-change-me}
     ports:
       - "8080:8080"
 

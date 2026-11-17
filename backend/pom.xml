@@ -22,6 +22,7 @@
         <zxing.version>3.5.4</zxing.version>
         <openpdf.version>3.0.5</openpdf.version>
         <bucket4j.version>8.21.0</bucket4j.version>
+        <jacoco.version>0.8.13</jacoco.version>
     </properties>
 
     <dependencies>
@@ -118,6 +119,27 @@
                         <profile>dev</profile>
                     </profiles>
                 </configuration>
+            </plugin>
+            <!-- Test coverage: ./mvnw verify writes target/site/jacoco/index.html -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
